@@ -1,1265 +1,609 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Golf Tracker</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <meta charset="UTF-8" />
+  <title>Golf Tracker – Simple Start</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; background: #F5F7F5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #041E0F; }
-    #root { height: 100%; display: flex; flex-direction: column; max-width: 430px; margin: 0 auto; background: #FFFFFF; border-left: 1px solid #D8E5DC; border-right: 1px solid #D8E5DC; box-shadow: 0 0 40px rgba(0,103,71,0.08); }
-    button { -webkit-tap-highlight-color: transparent; outline: none; cursor: pointer; font-family: inherit; }
-    button:active { opacity: 0.75; transform: scale(0.98); }
-    ::-webkit-scrollbar { display: none; }
-    input { font-family: inherit; }
-    input::placeholder { color: #A8BEB0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #0b1724;
+      color: #f5f5f5;
+    }
+    .app {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    h1, h2, h3 {
+      margin: 0 0 8px;
+    }
+    .card {
+      background: #111c2a;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+    label {
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+    select, input {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid #334155;
+      background: #020617;
+      color: #e5e7eb;
+      margin-bottom: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 8px 12px;
+      border-radius: 4px;
+      border: none;
+      background: #22c55e;
+      color: #022c22;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: #1e293b;
+      color: #e5e7eb;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .row > div {
+      flex: 1 1 140px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    th, td {
+      border-bottom: 1px solid #1f2937;
+      padding: 4px 6px;
+      text-align: center;
+    }
+    th {
+      background: #020617;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      background: #1e293b;
+      color: #e5e7eb;
+      margin-left: 4px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: #0f766e;
+      color: #ecfeff;
+      margin-right: 4px;
+    }
+    .small {
+      font-size: 0.8rem;
+      opacity: 0.8;
+    }
+    .flex-between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .scroll-x {
+      overflow-x: auto;
+    }
   </style>
 </head>
 <body>
-<div id="root"></div>
-<script>
-var useState = React.useState;
-var ce = React.createElement;
-
-// –– PALETTE (Gemini light theme + Masters accents) ———————––
-var C = {
-bg: “#FFFFFF”,
-bgAlt: “#F5F7F5”,
-card: “#F8FAF8”,
-cardBorder: “#E0EBE4”,
-header: “#006747”,
-headerText: “#FFFFFF”,
-input: “#F0F5F2”,
-inputBorder: “#C8DDD2”,
-btnBg: “#EEF4F0”,
-btnBorder: “#D0E4D8”,
-text: “#041E0F”,
-muted: “#5A7A68”,
-mutedLight: “#8FA89A”,
-border: “#E0EBE4”,
-deep: “#F0F5F2”
-};
-var MG  = “#006747”;   // Masters Green
-var MY  = “#E8C813”;   // Masters Yellow (slightly deepened for light bg)
-var MYB = “#FBE122”;   // Bright yellow for dark contexts
-var PC  = “#E05A2B”;   // Pimento - deepened for light bg
-var RED = “#C62828”;
-
-// –– STORAGE ––––––––––––––––––––––––––––––––
-var COURSE_KEY      = “jbr:golf_courses_v5”;
-var HISTORY_KEY     = “jbr:golf_history_v5”;
-var HOME_COURSE_KEY = “jbr:golf_home_v5”;
-
-function loadJSON(key, fallback) {
-try { var v = JSON.parse(localStorage.getItem(key)); return (v !== null && v !== undefined) ? v : fallback; }
-catch(e) { return fallback; }
-}
-function saveJSON(key, val) {
-try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
-}
-
-// –– COURSE DATABASE ––––––––––––––––––––––––––––
-var COURSE_DB = [
-{“id”:“nyc_van_cortlandt”,“name”:“Van Cortlandt Golf Course”,“address”:“Van Cortlandt Park, Bronx, NY”,“region”:“NYC”,“borough”:“Bronx”,“holes”:18,“par”:70,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,4,4,4,4,4],“type”:“public”,“notes”:“Oldest public golf course in the US (1895)”,“lat”:40.898,“lng”:-73.8956},
-{“id”:“nyc_pelham”,“name”:“Pelham Golf Course”,“address”:“870 Shore Rd, Bronx, NY”,“region”:“NYC”,“borough”:“Bronx”,“holes”:18,“par”:71,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:40.8683,“lng”:-73.8091},
-{“id”:“nyc_dyker_beach”,“name”:“Dyker Beach Golf Course”,“address”:“86th St & 7th Ave, Brooklyn, NY”,“region”:“NYC”,“borough”:“Brooklyn”,“holes”:18,“par”:67,“pars”:[4,4,3,4,4,3,4,4,3,4,4,3,4,4,3,4,4,4],“type”:“public”,“lat”:40.6189,“lng”:-74.0142},
-{“id”:“nyc_marine_park”,“name”:“Marine Park Golf Course”,“address”:“2880 Flatbush Ave, Brooklyn, NY”,“region”:“NYC”,“borough”:“Brooklyn”,“holes”:18,“par”:72,“pars”:[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:40.5956,“lng”:-73.9225},
-{“id”:“nyc_clearview”,“name”:“Clearview Golf Course”,“address”:“202-12 Willets Point Blvd, Queens, NY”,“region”:“NYC”,“borough”:“Queens”,“holes”:18,“par”:70,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,4,4,4,4,4],“type”:“public”,“lat”:40.7663,“lng”:-73.7878},
-{“id”:“nyc_douglaston”,“name”:“Douglaston Golf Course”,“address”:“63-20 Marathon Pkwy, Queens, NY”,“region”:“NYC”,“borough”:“Queens”,“holes”:18,“par”:67,“pars”:[4,4,3,4,4,3,4,4,3,4,4,3,4,4,3,4,4,4],“type”:“public”,“lat”:40.7744,“lng”:-73.7461},
-{“id”:“nyc_kissena”,“name”:“Kissena Golf Course”,“address”:“164-15 Booth Memorial Ave, Queens, NY”,“region”:“NYC”,“borough”:“Queens”,“holes”:9,“par”:34,“pars”:[4,3,4,4,4,3,4,4,4,0,0,0,0,0,0,0,0,0],“type”:“public”,“lat”:40.7302,“lng”:-73.8014},
-{“id”:“nyc_silver_lake”,“name”:“Silver Lake Golf Course”,“address”:“915 Victory Blvd, Staten Island, NY”,“region”:“NYC”,“borough”:“Staten Island”,“holes”:18,“par”:69,“pars”:[4,4,3,4,5,3,4,4,3,4,4,3,4,4,4,4,4,4],“type”:“public”,“lat”:40.6278,“lng”:-74.1003},
-{“id”:“nyc_latourette”,“name”:“LaTourette Golf Course”,“address”:“1001 Richmond Hill Rd, Staten Island, NY”,“region”:“NYC”,“borough”:“Staten Island”,“holes”:18,“par”:72,“pars”:[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:40.5756,“lng”:-74.1608},
-{“id”:“nyc_south_shore”,“name”:“South Shore Golf Course”,“address”:“200 Huguenot Ave, Staten Island, NY”,“region”:“NYC”,“borough”:“Staten Island”,“holes”:18,“par”:72,“pars”:[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:40.5367,“lng”:-74.1878},
-{“id”:“nyc_bethpage_black”,“name”:“Bethpage Black Course”,“address”:“99 Quaker Meeting House Rd, Farmingdale, NY”,“region”:“NYC Metro”,“holes”:18,“par”:71,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“notes”:“US Open host”,“lat”:40.7468,“lng”:-73.4576},
-{“id”:“nyc_bethpage_red”,“name”:“Bethpage Red Course”,“address”:“99 Quaker Meeting House Rd, Farmingdale, NY”,“region”:“NYC Metro”,“holes”:18,“par”:70,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,4,4,4,4,4],“type”:“public”,“lat”:40.7468,“lng”:-73.4576},
-{“id”:“nj_skyway”,“name”:“Skyway Golf Course”,“address”:“1 Skyway Dr, Jersey City, NJ”,“region”:“NJ”,“county”:“Hudson”,“holes”:9,“par”:27,“pars”:[3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,0,0],“type”:“public”,“notes”:“Par 3 course”,“lat”:40.698,“lng”:-74.0641},
-{“id”:“nj_hackensack_cc”,“name”:“Hackensack Country Club”,“address”:“Prospect Ave, Emerson, NJ”,“region”:“NJ”,“county”:“Bergen”,“holes”:18,“par”:72,“pars”:[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“semi-private”,“lat”:40.9756,“lng”:-74.0317},
-{“id”:“nj_rockleigh”,“name”:“Rockleigh Golf Course”,“address”:“15 Paris Ave, Rockleigh, NJ”,“region”:“NJ”,“county”:“Bergen”,“holes”:18,“par”:72,“pars”:[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:41.0056,“lng”:-73.9756},
-{“id”:“nj_darlington”,“name”:“Darlington Golf Course”,“address”:“277 Campgaw Rd, Mahwah, NJ”,“region”:“NJ”,“county”:“Bergen”,“holes”:18,“par”:71,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“notes”:“Bergen County Parks”,“lat”:41.0897,“lng”:-74.1623},
-{“id”:“nj_overpeck”,“name”:“Overpeck County Golf Course”,“address”:“40 Fort Lee Rd, Leonia, NJ”,“region”:“NJ”,“county”:“Bergen”,“holes”:18,“par”:71,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:40.8678,“lng”:-74.0181},
-{“id”:“nj_spooky_brook”,“name”:“Spooky Brook Golf Course”,“address”:“Elizabeth Ave, Somerset, NJ”,“region”:“NJ”,“county”:“Somerset”,“holes”:18,“par”:71,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:40.5678,“lng”:-74.5001},
-{“id”:“nj_warrenbrook”,“name”:“Warrenbrook Golf Course”,“address”:“500 Warrenville Rd, Warren, NJ”,“region”:“NJ”,“county”:“Somerset”,“holes”:18,“par”:71,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:40.6178,“lng”:-74.5256},
-{“id”:“nj_ash_brook”,“name”:“Ash Brook Golf Course”,“address”:“1210 Raritan Rd, Scotch Plains, NJ”,“region”:“NJ”,“county”:“Union”,“holes”:18,“par”:72,“pars”:[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:40.6456,“lng”:-74.3678},
-{“id”:“nj_galloping_hill”,“name”:“Galloping Hill Golf Course”,“address”:“3 Golf Dr, Kenilworth, NJ”,“region”:“NJ”,“county”:“Union”,“holes”:18,“par”:72,“pars”:[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:40.6756,“lng”:-74.2878},
-{“id”:“nj_hendricks_field”,“name”:“Hendricks Field Golf Course”,“address”:“431 Clifton Ave, Newark, NJ”,“region”:“NJ”,“county”:“Essex”,“holes”:18,“par”:70,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,4,4,4,4,4],“type”:“public”,“lat”:40.7456,“lng”:-74.1678},
-{“id”:“nj_forest_hill”,“name”:“Forest Hill Field Club”,“address”:“Bloomfield Ave, Bloomfield, NJ”,“region”:“NJ”,“county”:“Essex”,“holes”:9,“par”:36,“pars”:[4,4,3,5,4,4,3,5,4,0,0,0,0,0,0,0,0,0],“type”:“semi-private”,“lat”:40.7956,“lng”:-74.2001},
-{“id”:“nj_eagle_ridge”,“name”:“Eagle Ridge Golf Club”,“address”:“2 Augusta Blvd, Lakewood, NJ”,“region”:“NJ”,“county”:“Ocean”,“holes”:18,“par”:72,“pars”:[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:40.0956,“lng”:-74.2178},
-{“id”:“wc_saxon_woods”,“name”:“Saxon Woods Golf Course”,“address”:“315 Mamaroneck Ave, Scarsdale, NY”,“region”:“Westchester”,“county”:“Westchester”,“holes”:18,“par”:71,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:40.9756,“lng”:-73.7856},
-{“id”:“wc_sprain_lake”,“name”:“Sprain Lake Golf Course”,“address”:“290 East Grassy Sprain Rd, Yonkers, NY”,“region”:“Westchester”,“county”:“Westchester”,“holes”:18,“par”:71,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:40.9456,“lng”:-73.8456},
-{“id”:“wc_dunwoodie”,“name”:“Dunwoodie Golf Course”,“address”:“1 Wasylenko Lane, Yonkers, NY”,“region”:“Westchester”,“county”:“Westchester”,“holes”:18,“par”:71,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:40.9656,“lng”:-73.8756},
-{“id”:“wc_mohansic”,“name”:“Mohansic Golf Course”,“address”:“Baldwin Rd, Yorktown Heights, NY”,“region”:“Westchester”,“county”:“Westchester”,“holes”:18,“par”:71,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:41.2756,“lng”:-73.8056},
-{“id”:“wc_leewood”,“name”:“Leewood Golf Club”,“address”:“Watson Ave, Eastchester, NY”,“region”:“Westchester”,“county”:“Westchester”,“holes”:9,“par”:35,“pars”:[4,4,3,5,4,4,3,4,4,0,0,0,0,0,0,0,0,0],“type”:“semi-private”,“lat”:40.9456,“lng”:-73.8178},
-{“id”:“wc_ardsley”,“name”:“Ardsley Country Club”,“address”:“Club Rd, Ardsley-on-Hudson, NY”,“region”:“Westchester”,“county”:“Westchester”,“holes”:18,“par”:72,“pars”:[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“semi-private”,“lat”:41.0056,“lng”:-73.9078},
-{“id”:“wc_rye”,“name”:“Rye Golf Club”,“address”:“330 Boston Post Rd, Rye, NY”,“region”:“Westchester”,“county”:“Westchester”,“holes”:18,“par”:70,“pars”:[4,4,3,4,5,3,4,4,3,5,4,3,4,4,4,4,4,4],“type”:“semi-private”,“lat”:40.9756,“lng”:-73.6878},
-{“id”:“wc_st_andrews”,“name”:“St. Andrews Golf Club”,“address”:“339 Plank Rd, Hastings-on-Hudson, NY”,“region”:“Westchester”,“county”:“Westchester”,“holes”:18,“par”:69,“pars”:[4,4,3,4,5,3,4,4,3,4,4,3,4,4,4,4,4,4],“type”:“semi-private”,“notes”:“Oldest golf club in the US (1888)”,“lat”:40.9856,“lng”:-73.8778},
-{“id”:“wc_westchester_cc”,“name”:“Westchester Country Club”,“address”:“99 Biltmore Ave, Rye, NY”,“region”:“Westchester”,“county”:“Westchester”,“holes”:18,“par”:72,“pars”:[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“private”,“notes”:“PGA Tour host”,“lat”:40.9756,“lng”:-73.6878},
-{“id”:“wc_pound_ridge”,“name”:“Pound Ridge Golf Club”,“address”:“294 Westchester Ave, Pound Ridge, NY”,“region”:“Westchester”,“county”:“Westchester”,“holes”:18,“par”:72,“pars”:[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:41.2056,“lng”:-73.5778},
-{“id”:“wc_centennial”,“name”:“Centennial Golf Club”,“address”:“185 Simpson Rd, Carmel, NY”,“region”:“Westchester”,“county”:“Putnam”,“holes”:18,“par”:72,“pars”:[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],“type”:“public”,“lat”:41.4056,“lng”:-73.6978},
-{“id”:“wc_doral_arrowwood”,“name”:“Doral Arrowwood”,“address”:“975 Anderson Hill Rd, Rye Brook, NY”,“region”:“Westchester”,“county”:“Westchester”,“holes”:9,“par”:34,“pars”:[4,4,3,4,4,3,4,4,4,0,0,0,0,0,0,0,0,0],“type”:“public”,“lat”:41.0256,“lng”:-73.6878}
-];
-
-var DB_REGIONS = [“NYC”, “NYC Metro”, “NJ”, “Westchester”];
-
-// –– HELPERS ––––––––––––––––––––––––––––––––
-function calcXP(score, par, holes) {
-var base = holes === 9 ? 40 : 75;
-var diff = score - par;
-if (diff <= -5) return base + 80;
-if (diff <= -2) return base + 50;
-if (diff <= 0)  return base + 30;
-if (diff <= 5)  return base + 15;
-if (diff <= 10) return base + 5;
-return base;
-}
-
-function diffStr(d) {
-if (d === 0) return “E”;
-return d > 0 ? “+” + d : “” + d;
-}
-
-function diffColor(d) {
-if (d < 0)   return “#0B6E3F”; // under par = dark green
-if (d === 0) return MG;
-if (d <= 3)  return PC;
-return RED;
-}
-
-function holeColor(score, par) {
-if (score === null || score === undefined) return C.muted;
-var d = score - par;
-if (d <= -2) return “#0B6E3F”;
-if (d === -1) return MG;
-if (d === 0)  return “#4A8C6E”;
-if (d === 1)  return PC;
-return RED;
-}
-
-function holeBg(score, par) {
-if (score === null || score === undefined) return C.card;
-var d = score - par;
-if (d <= -2) return “#D4EDDA”;
-if (d === -1) return “#E8F5EE”;
-if (d === 0)  return “#F0F9F4”;
-if (d === 1)  return “#FFF0EB”;
-return “#FFEBEB”;
-}
-
-function emptyHole(par) {
-return { score: par, putts: 2, gir: false };
-}
-
-// –– COURSE MAP (OSM iframe) ————————————————
-function CourseMap(props) {
-var lat = props.lat;
-var lng = props.lng;
-var name = props.name;
-if (!lat || !lng) return null;
-var zoom = 15;
-var src = “https://www.openstreetmap.org/export/embed.html?bbox=”
-+ (lng - 0.012) + “,” + (lat - 0.008) + “,”
-+ (lng + 0.012) + “,” + (lat + 0.008)
-+ “&layer=mapnik&marker=” + lat + “,” + lng;
-return ce(“div”, { style: { width: “100%”, height: 180, borderRadius: 12, overflow: “hidden”, border: “1px solid “ + C.cardBorder, marginTop: 12 } },
-ce(“iframe”, {
-src: src,
-width: “100%”,
-height: “180”,
-frameBorder: “0”,
-scrolling: “no”,
-title: name + “ map”,
-style: { display: “block”, pointerEvents: “none” }
-})
-);
-}
-
-// –– PAR ROW ––––––––––––––––––––––––––––––––
-function ParRow(props) {
-var i = props.index;
-var pars = props.pars;
-var onChange = props.onChange;
-return ce(“div”, { style: { display: “flex”, alignItems: “center”, background: C.bg, borderRadius: 10, padding: “10px 14px”, border: “1px solid “ + C.cardBorder, gap: 12 } },
-ce(“div”, { style: { fontSize: 12, color: C.muted, width: 52, flexShrink: 0 } }, “Hole “ + (i + 1)),
-ce(“div”, { style: { flex: 1, display: “flex”, gap: 8, justifyContent: “center” } },
-[3, 4, 5].map(function(p) {
-var active = pars[i] === p;
-return ce(“button”, {
-key: p,
-onClick: function() { onChange(i, p); },
-style: {
-width: 42, height: 42, borderRadius: 10, cursor: “pointer”, fontSize: 15, fontWeight: 800,
-border: “2px solid “ + (active ? MG : C.btnBorder),
-background: active ? MG : C.btnBg,
-color: active ? “#FFFFFF” : C.muted
-}
-}, p);
-})
-)
-);
-}
-
-// –– COURSE EDITOR –––––––––––––––––––––––––––––
-function CourseEditor(props) {
-var initial  = props.initial;
-var onSave   = props.onSave;
-var onCancel = props.onCancel;
-var showMap  = props.showMap || false;
-
-var ns = useState(initial ? initial.name : “”);
-var name = ns[0]; var setName = ns[1];
-var hs = useState(initial ? initial.holes : 18);
-var holes = hs[0]; var setHoles = hs[1];
-var ps = useState(initial ? initial.pars.slice() : Array(18).fill(4));
-var pars = ps[0]; var setPars = ps[1];
-var es = useState(””);
-var error = es[0]; var setError = es[1];
-
-var activePars = pars.slice(0, holes);
-var totalPar   = activePars.reduce(function(a, b) { return a + b; }, 0);
-
-function handlePar(i, p) {
-setPars(function(prev) { var n = prev.slice(); n[i] = p; return n; });
-}
-
-function handleSave() {
-if (!name.trim()) { setError(“Course name is required”); return; }
-onSave({
-id: (initial && initial.id) ? initial.id : (”” + Date.now()),
-name: name.trim(),
-holes: holes,
-pars: pars.slice(),
-lat: initial ? initial.lat : null,
-lng: initial ? initial.lng : null
-});
-}
-
-return ce(“div”, { style: { flex: 1, overflowY: “auto”, background: C.bg } },
-// Green header bar
-ce(“div”, { style: { background: C.header, padding: “20px 24px 18px” } },
-ce(“button”, { onClick: onCancel, style: { background: “none”, border: “none”, color: “rgba(255,255,255,0.7)”, fontSize: 13, cursor: “pointer”, padding: “0 0 8px”, display: “block” } }, “< Back”),
-ce(“div”, { style: { fontSize: 10, color: MYB, letterSpacing: “0.12em”, textTransform: “uppercase”, fontWeight: 700, marginBottom: 4 } }, (initial && initial.id) ? “Edit Course” : “New Course”),
-ce(“div”, { style: { fontSize: 26, fontWeight: 900, color: “#fff” } }, (initial && initial.id) ? “Edit Scorecard” : “Add Course”),
-(initial && initial.address) ? ce(“div”, { style: { fontSize: 12, color: “rgba(255,255,255,0.65)”, marginTop: 4 } }, initial.address) : null
-),
-ce(“div”, { style: { padding: “20px 24px 40px”, display: “flex”, flexDirection: “column”, gap: 20 } },
-// Map preview if coordinates available
-(initial && initial.lat && showMap) ? ce(CourseMap, { lat: initial.lat, lng: initial.lng, name: initial.name }) : null,
-// Name
-ce(“div”, null,
-ce(“div”, { style: { fontSize: 10, color: C.muted, textTransform: “uppercase”, letterSpacing: “0.08em”, marginBottom: 8, fontWeight: 600 } }, “Course Name”),
-ce(“input”, { value: name, onChange: function(e) { setName(e.target.value); setError(””); }, placeholder: “e.g. Augusta National”, style: { width: “100%”, padding: “13px 15px”, borderRadius: 10, background: C.input, border: “1.5px solid “ + (error ? PC : C.inputBorder), color: C.text, fontSize: 15, outline: “none” } }),
-error ? ce(“div”, { style: { fontSize: 11, color: PC, marginTop: 6 } }, error) : null
-),
-// Holes
-ce(“div”, null,
-ce(“div”, { style: { fontSize: 10, color: C.muted, textTransform: “uppercase”, letterSpacing: “0.08em”, marginBottom: 8, fontWeight: 600 } }, “Holes”),
-ce(“div”, { style: { display: “flex”, gap: 10 } },
-[9, 18].map(function(h) {
-var active = holes === h;
-return ce(“button”, {
-key: h,
-onClick: function() { setHoles(h); },
-style: { flex: 1, padding: “14px”, borderRadius: 12, cursor: “pointer”, fontSize: 22, fontWeight: 900, border: “2px solid “ + (active ? MG : C.btnBorder), background: active ? MG : C.btnBg, color: active ? “#fff” : C.muted }
-}, h);
-})
-)
-),
-// Par per hole
-ce(“div”, null,
-ce(“div”, { style: { display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 12 } },
-ce(“div”, { style: { fontSize: 10, color: C.muted, textTransform: “uppercase”, letterSpacing: “0.08em”, fontWeight: 600 } }, “Par per Hole”),
-ce(“div”, { style: { fontSize: 13, fontWeight: 800, color: MG, background: “#E8F5EE”, padding: “4px 10px”, borderRadius: 8 } }, “Total Par: “ + totalPar)
-),
-ce(“div”, { style: { display: “flex”, flexDirection: “column”, gap: 6 } },
-Array.from({ length: holes }, function(_, i) {
-return ce(ParRow, { key: i, index: i, pars: pars, onChange: handlePar });
-})
-)
-),
-// Actions
-ce(“div”, { style: { display: “flex”, gap: 10 } },
-ce(“button”, { onClick: onCancel, style: { flex: 1, padding: “14px”, borderRadius: 12, background: C.btnBg, border: “1.5px solid “ + C.btnBorder, color: C.muted, fontSize: 14, fontWeight: 600 } }, “Cancel”),
-ce(“button”, { onClick: handleSave, style: { flex: 2, padding: “14px”, borderRadius: 12, background: MG, border: “none”, color: “#fff”, fontSize: 14, fontWeight: 800 } }, (initial && initial.id) ? “Save Changes” : “Save Course”)
-)
-)
-);
-}
-
-// –– MY COURSES ———————————————————––
-function MyCourses(props) {
-var courses      = props.courses;
-var onSelect     = props.onSelect;
-var onAdd        = props.onAdd;
-var onEdit       = props.onEdit;
-var onDelete     = props.onDelete;
-var onBack       = props.onBack;
-var homeCourseId = props.homeCourseId || null;
-var onSetHome    = props.onSetHome || function() {};
-
-var cs = useState(null);
-var confirmId = cs[0]; var setConfirmId = cs[1];
-var ms = useState(null);
-var mapOpen = ms[0]; var setMapOpen = ms[1];
-
-return ce(“div”, { style: { flex: 1, display: “flex”, flexDirection: “column”, overflow: “hidden”, background: C.bg } },
-// Header
-ce(“div”, { style: { background: C.header, padding: “20px 24px 18px” } },
-ce(“button”, { onClick: onBack, style: { background: “none”, border: “none”, color: “rgba(255,255,255,0.7)”, fontSize: 13, cursor: “pointer”, padding: “0 0 10px”, display: “block” } }, “< Back”),
-ce(“div”, { style: { display: “flex”, justifyContent: “space-between”, alignItems: “flex-end” } },
-ce(“div”, null,
-ce(“div”, { style: { fontSize: 10, color: MYB, letterSpacing: “0.12em”, textTransform: “uppercase”, fontWeight: 700, marginBottom: 4 } }, “Saved”),
-ce(“div”, { style: { fontSize: 26, fontWeight: 900, color: “#fff” } }, “My Courses”)
-),
-ce(“button”, { onClick: onAdd, style: { padding: “9px 18px”, borderRadius: 10, background: MYB, border: “none”, color: “#000”, fontSize: 12, fontWeight: 800 } }, “+ Add”)
-)
-),
-// List
-ce(“div”, { style: { flex: 1, overflowY: “auto”, padding: “16px 20px 32px”, display: “flex”, flexDirection: “column”, gap: 10 } },
-courses.length === 0 ?
-ce(“div”, { style: { textAlign: “center”, padding: “40px 0” } },
-ce(“div”, { style: { fontSize: 13, color: C.muted, marginBottom: 20 } }, “No courses saved yet”),
-ce(“button”, { onClick: onAdd, style: { padding: “13px 26px”, borderRadius: 12, background: MG, border: “none”, color: “#fff”, fontSize: 14, fontWeight: 700 } }, “+ Add First Course”)
-) :
-courses.map(function(course) {
-var totalPar  = course.pars.slice(0, course.holes).reduce(function(a, b) { return a + b; }, 0);
-var isConfirm = confirmId === course.id;
-var isHome    = homeCourseId === course.id;
-var mapShown  = mapOpen === course.id;
-return ce(“div”, { key: course.id, style: { background: C.card, borderRadius: 14, border: “1.5px solid “ + (isHome ? MG + “66” : C.cardBorder), overflow: “hidden” } },
-ce(“div”, { style: { padding: “14px 16px”, display: “flex”, alignItems: “flex-start”, gap: 12 } },
-// Flag
-ce(“div”, {
-onClick: function() { onSelect(course); },
-style: { width: 44, height: 44, borderRadius: 11, background: isHome ? MG : C.bgAlt, border: “1.5px solid “ + (isHome ? MG : C.cardBorder), display: “flex”, alignItems: “center”, justifyContent: “center”, flexShrink: 0, cursor: “pointer” }
-},
-ce(“svg”, { width: 22, height: 22, viewBox: “0 0 24 24”, fill: “none”, stroke: isHome ? “#fff” : MG, strokeWidth: “1.5”, strokeLinecap: “round”, strokeLinejoin: “round” },
-ce(“line”, { x1: “12”, y1: “2”, x2: “12”, y2: “18” }),
-ce(“circle”, { cx: “12”, cy: “20”, r: “2”, fill: isHome ? “#fff” : MG, stroke: “none” }),
-ce(“path”, { d: “M12 6 Q18 9 12 12” })
-)
-),
-// Info
-ce(“div”, { onClick: function() { onSelect(course); }, style: { flex: 1, cursor: “pointer” } },
-isHome ? ce(“div”, { style: { fontSize: 9, color: MG, fontWeight: 800, textTransform: “uppercase”, letterSpacing: “0.1em”, marginBottom: 3 } }, “Home Course”) : null,
-ce(“div”, { style: { fontSize: 14, fontWeight: 700, color: C.text } }, course.name),
-ce(“div”, { style: { fontSize: 11, color: C.muted, marginTop: 2 } }, course.holes + “ holes  Par “ + totalPar),
-// Par grid
-ce(“div”, { style: { display: “flex”, gap: 3, marginTop: 8, flexWrap: “wrap” } },
-course.pars.slice(0, course.holes).map(function(p, i) {
-var bg  = p === 3 ? “#D4EDDA” : p === 5 ? “#FFF8D6” : C.bgAlt;
-var col = p === 3 ? “#0B6E3F” : p === 5 ? “#8B6914” : C.muted;
-return ce(“div”, { key: i, style: { width: 20, height: 20, borderRadius: 4, background: bg, fontSize: 9, fontWeight: 700, color: col, display: “flex”, alignItems: “center”, justifyContent: “center” } }, p);
-})
-)
-),
-// Action buttons
-ce(“div”, { style: { display: “flex”, flexDirection: “column”, gap: 5, flexShrink: 0 } },
-ce(“button”, { onClick: function() { onEdit(course); }, style: { padding: “5px 10px”, borderRadius: 8, background: C.btnBg, border: “1px solid “ + C.btnBorder, color: C.muted, fontSize: 10, fontWeight: 600 } }, “Edit”),
-ce(“button”, {
-onClick: function() { onSetHome(isHome ? null : course); },
-style: { padding: “5px 10px”, borderRadius: 8, background: isHome ? “#E8F5EE” : C.btnBg, border: “1px solid “ + (isHome ? MG + “55” : C.btnBorder), color: isHome ? MG : C.muted, fontSize: 10, fontWeight: 600 }
-}, isHome ? “Home” : “Home?”),
-(course.lat && course.lng) ? ce(“button”, {
-onClick: function() { setMapOpen(mapShown ? null : course.id); },
-style: { padding: “5px 10px”, borderRadius: 8, background: mapShown ? “#E8F5EE” : C.btnBg, border: “1px solid “ + (mapShown ? MG + “55” : C.btnBorder), color: mapShown ? MG : C.muted, fontSize: 10, fontWeight: 600 }
-}, “Map”) : null,
-ce(“button”, {
-onClick: function() { setConfirmId(isConfirm ? null : course.id); },
-style: { padding: “5px 10px”, borderRadius: 8, background: isConfirm ? “#FFEBEB” : C.btnBg, border: “1px solid “ + (isConfirm ? RED + “44” : C.btnBorder), color: isConfirm ? RED : C.muted, fontSize: 10, fontWeight: 600 }
-}, isConfirm ? “Sure?” : “Delete”)
-)
-),
-// Map embed
-mapShown && course.lat ? ce(“div”, { style: { padding: “0 16px 14px” } },
-ce(CourseMap, { lat: course.lat, lng: course.lng, name: course.name })
-) : null,
-// Confirm delete
-isConfirm ? ce(“div”, { style: { borderTop: “1px solid “ + C.cardBorder, padding: “10px 16px”, background: “#FFF5F5”, display: “flex”, gap: 8, alignItems: “center” } },
-ce(“div”, { style: { flex: 1, fontSize: 12, color: RED } }, “Delete this course?”),
-ce(“button”, { onClick: function() { setConfirmId(null); }, style: { padding: “6px 12px”, borderRadius: 8, background: C.btnBg, border: “1px solid “ + C.btnBorder, color: C.muted, fontSize: 11 } }, “Cancel”),
-ce(“button”, { onClick: function() { onDelete(course.id); setConfirmId(null); }, style: { padding: “6px 12px”, borderRadius: 8, background: RED, border: “none”, color: “#fff”, fontSize: 11, fontWeight: 700 } }, “Delete”)
-) : null
-);
-})
-)
-);
-}
-
-// –– HISTORY LOG ————————————————————
-function HistoryLog(props) {
-var history = props.history;
-var onClose = props.onClose;
-
-var es = useState(null);
-var expanded = es[0]; var setExpanded = es[1];
-
-var best = history.length ? history.reduce(function(a, b) { return b.scoreDiff < a.scoreDiff ? b : a; }) : null;
-var avg  = history.length ? Math.round(history.reduce(function(a, b) { return a + b.scoreDiff; }, 0) / history.length) : null;
-
-return ce(“div”, { style: { position: “fixed”, inset: 0, background: C.bg, zIndex: 200, display: “flex”, flexDirection: “column”, maxWidth: 430, margin: “0 auto” } },
-ce(“div”, { style: { background: C.header, padding: “24px 24px 20px” } },
-ce(“div”, { style: { display: “flex”, justifyContent: “space-between”, alignItems: “flex-start” } },
-ce(“div”, null,
-ce(“div”, { style: { fontSize: 10, color: MYB, textTransform: “uppercase”, letterSpacing: “0.12em”, fontWeight: 700, marginBottom: 4 } }, “Leaderboard”),
-ce(“div”, { style: { fontSize: 26, fontWeight: 900, color: “#fff” } }, “Round History”)
-),
-ce(“button”, { onClick: onClose, style: { width: 36, height: 36, borderRadius: 10, background: “rgba(255,255,255,0.15)”, border: “none”, color: “#fff”, fontSize: 16, cursor: “pointer” } }, “X”)
-),
-ce(“div”, { style: { display: “flex”, gap: 8, marginTop: 16 } },
-[[“Rounds”, history.length], [“Best”, best ? diffStr(best.scoreDiff) : “-”], [“Avg”, avg !== null ? diffStr(avg) : “-”]].map(function(pair) {
-return ce(“div”, { key: pair[0], style: { flex: 1, background: “rgba(255,255,255,0.12)”, borderRadius: 10, padding: “10px 8px”, textAlign: “center” } },
-ce(“div”, { style: { fontSize: 16, fontWeight: 900, color: MYB } }, pair[1]),
-ce(“div”, { style: { fontSize: 8, color: “rgba(255,255,255,0.65)”, textTransform: “uppercase”, letterSpacing: “0.08em”, marginTop: 2 } }, pair[0])
-);
-})
-)
-),
-ce(“div”, { style: { flex: 1, overflowY: “auto”, padding: “14px 20px 40px” } },
-history.length === 0 ?
-ce(“div”, { style: { textAlign: “center”, padding: “40px 0”, color: C.muted } }, “No rounds logged yet”) :
-ce(“div”, { style: { display: “flex”, flexDirection: “column”, gap: 10 } },
-history.map(function(r, i) {
-var isOpen = expanded === i;
-var d = r.scoreDiff;
-var dc = d < 0 ? “#0B6E3F” : d === 0 ? MG : d <= 5 ? PC : RED;
-return ce(“div”, { key: i, style: { background: C.card, borderRadius: 14, border: “1px solid “ + C.cardBorder, overflow: “hidden” } },
-ce(“div”, { onClick: function() { setExpanded(isOpen ? null : i); }, style: { padding: “14px 16px”, display: “flex”, alignItems: “center”, gap: 12, cursor: “pointer” } },
-ce(“div”, { style: { width: 44, height: 44, borderRadius: 11, background: isOpen ? “#E8F5EE” : C.bgAlt, border: “1.5px solid “ + (isOpen ? MG + “44” : C.cardBorder), display: “flex”, alignItems: “center”, justifyContent: “center”, flexShrink: 0 } },
-ce(“svg”, { width: 20, height: 20, viewBox: “0 0 24 24”, fill: “none”, stroke: MG, strokeWidth: “1.5”, strokeLinecap: “round”, strokeLinejoin: “round” },
-ce(“line”, { x1: “12”, y1: “2”, x2: “12”, y2: “18” }),
-ce(“circle”, { cx: “12”, cy: “20”, r: “2”, fill: MG, stroke: “none” }),
-ce(“path”, { d: “M12 6 Q18 9 12 12” })
-)
-),
-ce(“div”, { style: { flex: 1 } },
-ce(“div”, { style: { fontSize: 14, fontWeight: 700, color: C.text } }, r.courseName || “Golf Round”),
-ce(“div”, { style: { fontSize: 11, color: C.muted, marginTop: 2 } }, r.holes + “ holes  “ + r.totalScore + “ strokes  Par “ + r.totalPar)
-),
-ce(“div”, { style: { textAlign: “right” } },
-ce(“div”, { style: { fontSize: 24, fontWeight: 900, color: dc } }, diffStr(r.scoreDiff)),
-ce(“div”, { style: { fontSize: 9, color: C.muted } }, r.date)
-),
-ce(“div”, { style: { fontSize: 11, color: C.muted, marginLeft: 4 } }, isOpen ? “^” : “v”)
-),
-isOpen ? ce(“div”, { style: { background: C.bgAlt, borderTop: “1px solid “ + C.cardBorder, padding: “14px 16px” } },
-ce(“div”, { style: { display: “flex”, gap: 8, marginBottom: 12 } },
-[[“Putts”, r.totalPutts || “-”], [“GIR”, r.girCount !== undefined ? r.girCount : “-”], [“XP”, “+” + r.xp]].map(function(pair) {
-return ce(“div”, { key: pair[0], style: { flex: 1, background: C.bg, borderRadius: 10, padding: “10px 8px”, border: “1px solid “ + C.cardBorder, textAlign: “center” } },
-ce(“div”, { style: { fontSize: 15, fontWeight: 800, color: MG } }, pair[1]),
-ce(“div”, { style: { fontSize: 8, color: C.muted, textTransform: “uppercase”, letterSpacing: “0.06em”, marginTop: 2 } }, pair[0])
-);
-})
-),
-r.holeData ? ce(“div”, { style: { display: “flex”, flexWrap: “wrap”, gap: 5 } },
-r.holeData.map(function(h, j) {
-var pd = h.score - r.pars[j];
-var pc = pd < 0 ? “#0B6E3F” : pd === 0 ? MG : pd === 1 ? PC : RED;
-var pbg = pd < 0 ? “#D4EDDA” : pd === 0 ? “#E8F5EE” : pd === 1 ? “#FFF0EB” : “#FFEBEB”;
-return ce(“div”, { key: j, style: { width: 36, height: 48, borderRadius: 8, background: pbg, border: “1px solid “ + pc + “44”, display: “flex”, flexDirection: “column”, alignItems: “center”, justifyContent: “center”, gap: 2 } },
-ce(“div”, { style: { fontSize: 8, color: C.muted } }, j + 1),
-ce(“div”, { style: { fontSize: 14, fontWeight: 800, color: pc } }, h.score),
-ce(“div”, { style: { fontSize: 8, color: C.mutedLight } }, h.putts + “p”)
-);
-})
-) : null
-) : null
-);
-})
-)
-)
-);
-}
-
-// –– COURSE SEARCH –––––––––––––––––––––––––––––
-function CourseSearch(props) {
-var onSelect = props.onSelect;
-var onCancel = props.onCancel;
-
-var qs = useState(””); var query = qs[0]; var setQuery = qs[1];
-var rs = useState([]); var results = rs[0]; var setResults = rs[1];
-var ls = useState(false); var loading = ls[0]; var setLoading = ls[1];
-var es = useState(””); var error = es[0]; var setError = es[1];
-var ss = useState(false); var hasSearched = ss[0]; var setHasSearched = ss[1];
-var ms = useState(null); var previewMap = ms[0]; var setPreviewMap = ms[1];
-
-function doSearch() {
-var q = query.trim();
-if (!q) return;
-setLoading(true); setError(””); setResults([]); setHasSearched(true);
-var url = “https://nominatim.openstreetmap.org/search”
-+ “?q=” + encodeURIComponent(q + “ golf course”)
-+ “&format=json&limit=8&addressdetails=1&extratags=1&countrycodes=us”;
-fetch(url, { headers: { “Accept-Language”: “en”, “User-Agent”: “JBR-Golf-Tracker/1.0” } })
-.then(function(res) { return res.json(); })
-.then(function(data) {
-setLoading(false);
-var filtered = data.filter(function(item) {
-var name = (item.display_name || “”).toLowerCase();
-var type = (item.type || “”).toLowerCase();
-var tags = item.extratags || {};
-return name.indexOf(“golf”) !== -1 || type === “golf_course” || (tags.sport && tags.sport.indexOf(“golf”) !== -1);
-});
-if (filtered.length === 0 && data.length > 0) filtered = data.slice(0, 5);
-setResults(filtered);
-})
-.catch(function() { setLoading(false); setError(“Search failed. Check your connection.”); });
-}
-
-function handleKey(e) { if (e.key === “Enter” || e.keyCode === 13) doSearch(); }
-
-function getAddr(item) {
-var addr = item.address || {};
-var parts = [];
-if (addr.road) parts.push(addr.road);
-if (addr.city || addr.town || addr.village) parts.push(addr.city || addr.town || addr.village);
-if (addr.state) parts.push(addr.state);
-return parts.join(”, “) || item.display_name.split(”,”).slice(0, 2).join(”,”);
-}
-
-return ce(“div”, { style: { flex: 1, display: “flex”, flexDirection: “column”, overflow: “hidden”, background: C.bg } },
-ce(“div”, { style: { background: C.header, padding: “20px 24px 18px” } },
-ce(“button”, { onClick: onCancel, style: { background: “none”, border: “none”, color: “rgba(255,255,255,0.7)”, fontSize: 13, cursor: “pointer”, padding: “0 0 10px”, display: “block” } }, “< Back”),
-ce(“div”, { style: { fontSize: 10, color: MYB, letterSpacing: “0.12em”, textTransform: “uppercase”, fontWeight: 700, marginBottom: 4 } }, “Find a Course”),
-ce(“div”, { style: { fontSize: 24, fontWeight: 900, color: “#fff”, marginBottom: 14 } }, “Search Courses”),
-ce(“div”, { style: { display: “flex”, gap: 8 } },
-ce(“input”, {
-value: query, onChange: function(e) { setQuery(e.target.value); }, onKeyDown: handleKey,
-placeholder: “e.g. Bethpage, Van Cortlandt…”, autoFocus: true,
-style: { flex: 1, padding: “12px 14px”, borderRadius: 10, background: “rgba(255,255,255,0.15)”, border: “1.5px solid rgba(255,255,255,0.25)”, color: “#fff”, fontSize: 14, outline: “none” }
-}),
-ce(“button”, {
-onClick: doSearch, disabled: !query.trim() || loading,
-style: { padding: “12px 20px”, borderRadius: 10, background: query.trim() && !loading ? MYB : “rgba(255,255,255,0.15)”, border: “none”, color: query.trim() && !loading ? “#000” : “rgba(255,255,255,0.5)”, fontSize: 13, fontWeight: 800, flexShrink: 0 }
-}, loading ? “…” : “Go”)
-)
-),
-ce(“div”, { style: { flex: 1, overflowY: “auto”, padding: “14px 20px 32px” } },
-loading ? ce(“div”, { style: { textAlign: “center”, padding: “40px 0”, color: C.muted } }, “Searching…”) :
-error   ? ce(“div”, { style: { textAlign: “center”, padding: “30px 0” } },
-ce(“div”, { style: { fontSize: 13, color: PC, marginBottom: 10 } }, error),
-ce(“button”, { onClick: doSearch, style: { padding: “10px 20px”, borderRadius: 10, background: MG, border: “none”, color: “#fff”, fontSize: 12, fontWeight: 700 } }, “Retry”)
-) :
-results.length > 0 ? ce(“div”, { style: { display: “flex”, flexDirection: “column”, gap: 8 } },
-ce(“div”, { style: { fontSize: 10, color: C.muted, textTransform: “uppercase”, letterSpacing: “0.1em”, marginBottom: 4 } }, results.length + “ result” + (results.length !== 1 ? “s” : “”) + “ from OpenStreetMap”),
-results.map(function(item, i) {
-var nm = item.name || item.display_name.split(”,”)[0];
-var addr = getAddr(item);
-var lat = parseFloat(item.lat);
-var lng = parseFloat(item.lon);
-var showingMap = previewMap === i;
-return ce(“div”, { key: i, style: { background: C.card, borderRadius: 14, border: “1px solid “ + C.cardBorder, overflow: “hidden” } },
-ce(“div”, { style: { display: “flex”, alignItems: “center”, padding: “13px 15px”, gap: 10 } },
-ce(“div”, { style: { width: 36, height: 36, borderRadius: 9, background: “#E8F5EE”, border: “1px solid “ + MG + “33”, display: “flex”, alignItems: “center”, justifyContent: “center”, flexShrink: 0 } },
-ce(“svg”, { width: 18, height: 18, viewBox: “0 0 24 24”, fill: “none”, stroke: MG, strokeWidth: “1.5”, strokeLinecap: “round”, strokeLinejoin: “round” },
-ce(“line”, { x1: “12”, y1: “2”, x2: “12”, y2: “18” }),
-ce(“circle”, { cx: “12”, cy: “20”, r: “2”, fill: MG, stroke: “none” }),
-ce(“path”, { d: “M12 6 Q18 9 12 12” })
-)
-),
-ce(“div”, { onClick: function() { onSelect({ name: nm, address: addr, lat: lat, lng: lng }); }, style: { flex: 1, cursor: “pointer”, minWidth: 0 } },
-ce(“div”, { style: { fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 } }, nm),
-ce(“div”, { style: { fontSize: 11, color: C.muted, overflow: “hidden”, textOverflow: “ellipsis”, whiteSpace: “nowrap” } }, addr)
-),
-ce(“button”, { onClick: function() { setPreviewMap(showingMap ? null : i); }, style: { padding: “5px 10px”, borderRadius: 8, background: showingMap ? “#E8F5EE” : C.btnBg, border: “1px solid “ + (showingMap ? MG + “55” : C.btnBorder), color: showingMap ? MG : C.muted, fontSize: 10, fontWeight: 600, flexShrink: 0 } }, “Map”),
-ce(“button”, { onClick: function() { onSelect({ name: nm, address: addr, lat: lat, lng: lng }); }, style: { padding: “5px 10px”, borderRadius: 8, background: MG, border: “none”, color: “#fff”, fontSize: 10, fontWeight: 700, flexShrink: 0 } }, “Add >”)
-),
-showingMap ? ce(“div”, { style: { padding: “0 15px 14px” } },
-ce(CourseMap, { lat: lat, lng: lng, name: nm })
-) : null
-);
-})
-) :
-hasSearched ? ce(“div”, { style: { textAlign: “center”, padding: “40px 0” } },
-ce(“div”, { style: { fontSize: 13, color: C.muted, marginBottom: 8 } }, “No courses found”),
-ce(“div”, { style: { fontSize: 11, color: C.mutedLight } }, “Try a different name or browse below”)
-) :
-// Pre-search: local DB browser
-ce(“div”, { style: { paddingTop: 4 } },
-ce(“div”, { style: { fontSize: 11, color: C.muted, marginBottom: 16 } }, “Browse local courses or search by name above. Tap a course to add it with pars pre-filled.”),
-DB_REGIONS.map(function(region) {
-var regionCourses = COURSE_DB.filter(function(c) { return c.region === region; });
-if (regionCourses.length === 0) return null;
-return ce(“div”, { key: region, style: { marginBottom: 20 } },
-ce(“div”, { style: { fontSize: 10, color: MG, textTransform: “uppercase”, letterSpacing: “0.12em”, fontWeight: 800, marginBottom: 10, display: “flex”, alignItems: “center”, gap: 8 } },
-region,
-ce(“div”, { style: { fontSize: 9, background: “#E8F5EE”, color: MG, padding: “2px 7px”, borderRadius: 6, fontWeight: 700 } }, regionCourses.length)
-),
-ce(“div”, { style: { display: “flex”, flexDirection: “column”, gap: 6 } },
-regionCourses.map(function(course) {
-return ce(“button”, {
-key: course.id,
-onClick: function() { onSelect({ name: course.name, address: course.address, pars: course.pars, holes: course.holes, par: course.par, fromDB: true, lat: course.lat, lng: course.lng }); },
-style: { width: “100%”, padding: “12px 14px”, borderRadius: 12, background: C.card, border: “1px solid “ + C.cardBorder, cursor: “pointer”, textAlign: “left”, display: “flex”, alignItems: “center”, gap: 10 }
-},
-ce(“div”, { style: { width: 32, height: 32, borderRadius: 8, background: “#E8F5EE”, border: “1px solid “ + MG + “33”, display: “flex”, alignItems: “center”, justifyContent: “center”, flexShrink: 0 } },
-ce(“svg”, { width: 15, height: 15, viewBox: “0 0 24 24”, fill: “none”, stroke: MG, strokeWidth: “1.5”, strokeLinecap: “round”, strokeLinejoin: “round” },
-ce(“line”, { x1: “12”, y1: “2”, x2: “12”, y2: “18” }),
-ce(“circle”, { cx: “12”, cy: “20”, r: “2”, fill: MG, stroke: “none” }),
-ce(“path”, { d: “M12 6 Q18 9 12 12” })
-)
-),
-ce(“div”, { style: { flex: 1, minWidth: 0 } },
-ce(“div”, { style: { fontSize: 13, fontWeight: 700, color: C.text } }, course.name),
-ce(“div”, { style: { fontSize: 10, color: C.muted, marginTop: 1 } },
-course.holes + “ holes  Par “ + course.par + “  “ + (course.type === “public” ? “Public” : course.type === “semi-private” ? “Semi-Private” : “Private”))
-),
-ce(“div”, { style: { fontSize: 10, color: MG, fontWeight: 700, flexShrink: 0, background: “#E8F5EE”, padding: “4px 9px”, borderRadius: 7 } }, “Add >”)
-);
-})
-)
-);
-})
-)
-)
-);
-}
-
-// –– HANDICAP CALCULATOR ––––––––––––––––––––––––––
-function HandicapCalc(props) {
-var onClose = props.onClose;
-
-var rs = useState(Array(5).fill({ score: “”, par: 72 }));
-var rounds = rs[0]; var setRounds = rs[1];
-
-function updateRound(i, key, val) {
-setRounds(function(prev) {
-var n = prev.map(function(r) { return Object.assign({}, r); });
-n[i][key] = val;
-return n;
-});
-}
-
-// Simplified handicap: average of differentials from up to 5 recent rounds
-// Differential = (Score - Course Rating) * 113 / Slope
-// We use par as a proxy for course rating, slope defaults 113
-var diffs = rounds
-.filter(function(r) { return r.score !== “” && !isNaN(parseInt(r.score, 10)); })
-.map(function(r) {
-var s = parseInt(r.score, 10);
-var p = parseInt(r.par, 10) || 72;
-return ((s - p) * 113) / 113; // simplified: diff = score - par
-});
-
-var handicapIndex = null;
-if (diffs.length > 0) {
-var sorted = diffs.slice().sort(function(a, b) { return a - b; });
-// Use best 40% of rounds (min 1)
-var useCount = Math.max(1, Math.floor(sorted.length * 0.4));
-var best = sorted.slice(0, useCount);
-var avg = best.reduce(function(a, b) { return a + b; }, 0) / best.length;
-handicapIndex = Math.round(avg * 10) / 10;
-}
-
-var parOptions = [27, 34, 35, 36, 67, 68, 69, 70, 71, 72];
-
-return ce(“div”, { style: { position: “fixed”, inset: 0, background: C.bg, zIndex: 300, display: “flex”, flexDirection: “column”, maxWidth: 430, margin: “0 auto” } },
-// Header
-ce(“div”, { style: { background: C.header, padding: “20px 24px 18px”, flexShrink: 0 } },
-ce(“div”, { style: { display: “flex”, justifyContent: “space-between”, alignItems: “flex-start” } },
-ce(“div”, null,
-ce(“div”, { style: { fontSize: 10, color: MYB, textTransform: “uppercase”, letterSpacing: “0.12em”, fontWeight: 700, marginBottom: 4 } }, “Optional”),
-ce(“div”, { style: { fontSize: 26, fontWeight: 900, color: “#fff” } }, “Handicap Index”)
-),
-ce(“button”, { onClick: onClose, style: { width: 36, height: 36, borderRadius: 10, background: “rgba(255,255,255,0.15)”, border: “none”, color: “#fff”, fontSize: 16, cursor: “pointer” } }, “X”)
-),
-handicapIndex !== null ? ce(“div”, { style: { marginTop: 14, background: “rgba(255,255,255,0.12)”, borderRadius: 12, padding: “12px 16px”, display: “flex”, alignItems: “center”, justifyContent: “space-between” } },
-ce(“div”, null,
-ce(“div”, { style: { fontSize: 11, color: “rgba(255,255,255,0.65)” } }, “Estimated Handicap Index”),
-ce(“div”, { style: { fontSize: 10, color: “rgba(255,255,255,0.4)”, marginTop: 2 } }, “Based on “ + diffs.length + “ round” + (diffs.length !== 1 ? “s” : “”) + “ entered below”)
-),
-ce(“div”, { style: { fontSize: 40, fontWeight: 900, color: MYB } }, handicapIndex > 0 ? “+” + handicapIndex : “” + handicapIndex)
-) : null
-),
-// Rounds entry
-ce(“div”, { style: { flex: 1, overflowY: “auto”, padding: “16px 20px 40px” } },
-ce(“div”, { style: { fontSize: 12, color: C.muted, marginBottom: 16, lineHeight: 1.6 } },
-“Enter up to 5 recent rounds. Handicap uses your best scores. Leave unused rows blank.”
-),
-ce(“div”, { style: { background: C.card, borderRadius: 14, border: “1px solid “ + C.cardBorder, overflow: “hidden”, marginBottom: 16 } },
-// Header row
-ce(“div”, { style: { display: “flex”, padding: “9px 14px”, background: C.bgAlt, borderBottom: “1px solid “ + C.cardBorder } },
-ce(“div”, { style: { flex: 1, fontSize: 10, color: C.muted, textTransform: “uppercase”, fontWeight: 600 } }, “Round”),
-ce(“div”, { style: { width: 80, textAlign: “center”, fontSize: 10, color: C.muted, textTransform: “uppercase”, fontWeight: 600 } }, “Score”),
-ce(“div”, { style: { width: 80, textAlign: “center”, fontSize: 10, color: C.muted, textTransform: “uppercase”, fontWeight: 600 } }, “Course Par”),
-ce(“div”, { style: { width: 60, textAlign: “center”, fontSize: 10, color: C.muted, textTransform: “uppercase”, fontWeight: 600 } }, “Diff”)
-),
-rounds.map(function(r, i) {
-var s = parseInt(r.score, 10);
-var p = parseInt(r.par, 10) || 72;
-var diff = (!isNaN(s) && r.score !== “”) ? (s - p) : null;
-var dc = diff === null ? C.mutedLight : diff < 0 ? “#0B6E3F” : diff === 0 ? MG : diff <= 5 ? PC : RED;
-return ce(“div”, { key: i, style: { display: “flex”, alignItems: “center”, padding: “10px 14px”, borderBottom: i < 4 ? “1px solid “ + C.cardBorder : “none”, background: i % 2 === 0 ? “transparent” : C.bgAlt + “66” } },
-ce(“div”, { style: { flex: 1, fontSize: 12, color: C.muted } }, “Round “ + (i + 1)),
-ce(“input”, {
-type: “number”,
-value: r.score,
-onChange: function(e) { updateRound(i, “score”, e.target.value); },
-placeholder: “-”,
-style: { width: 72, textAlign: “center”, padding: “7px 4px”, borderRadius: 8, background: C.input, border: “1px solid “ + C.inputBorder, color: C.text, fontSize: 14, fontWeight: 700, outline: “none” }
-}),
-ce(“select”, {
-value: r.par,
-onChange: function(e) { updateRound(i, “par”, e.target.value); },
-style: { width: 72, textAlign: “center”, padding: “7px 4px”, borderRadius: 8, background: C.input, border: “1px solid “ + C.inputBorder, color: C.text, fontSize: 13, outline: “none”, marginLeft: 8 }
-},
-parOptions.map(function(p) {
-return ce(“option”, { key: p, value: p }, p);
-})
-),
-ce(“div”, { style: { width: 52, textAlign: “center”, fontSize: 14, fontWeight: 800, color: dc } },
-diff !== null ? (diff > 0 ? “+” + diff : “” + diff) : “-”
-)
-);
-})
-),
-ce(“div”, { style: { fontSize: 11, color: C.mutedLight, textAlign: “center”, lineHeight: 1.7 } },
-“This is a simplified estimate. For an official USGA Handicap Index,”,
-ce(“br”),
-“register with a club or use the GHIN app.”
-)
-)
-);
-}
-
-// –– PRE-ROUND SETUP ––––––––––––––––––––––––––––
-function PreRoundSetup(props) {
-var course   = props.course;
-var onStart  = props.onStart;
-var onBack   = props.onBack;
-
-var prPars0  = useState(course.pars ? course.pars.slice() : Array(18).fill(4));
-var prPars   = prPars0[0]; var setPrPars = prPars0[1];
-var prHoles0 = useState(course.holes || 18);
-var prHoles  = prHoles0[0]; var setPrHoles = prHoles0[1];
-var showHC0  = useState(false);
-var showHC   = showHC0[0]; var setShowHC = showHC0[1];
-
-var prActivePars = prPars.slice(0, prHoles);
-var prTotalPar   = prActivePars.reduce(function(a, b) { return a + b; }, 0);
-
-function handlePrPar(i, p) {
-setPrPars(function(prev) { var n = prev.slice(); n[i] = p; return n; });
-}
-
-function handleStart() {
-onStart(Object.assign({}, course, { holes: prHoles, pars: prPars.slice() }));
-}
-
-return ce(“div”, { style: { flex: 1, display: “flex”, flexDirection: “column”, overflow: “hidden”, background: C.bg } },
-showHC ? ce(HandicapCalc, { onClose: function() { setShowHC(false); } }) : null,
-// Header
-ce(“div”, { style: { background: C.header, padding: “20px 24px 18px”, flexShrink: 0 } },
-ce(“button”, { onClick: onBack, style: { background: “none”, border: “none”, color: “rgba(255,255,255,0.7)”, fontSize: 13, cursor: “pointer”, padding: “0 0 8px”, display: “block” } }, “< Back”),
-ce(“div”, { style: { display: “flex”, justifyContent: “space-between”, alignItems: “flex-start” } },
-ce(“div”, { style: { flex: 1, minWidth: 0 } },
-ce(“div”, { style: { fontSize: 10, color: MYB, letterSpacing: “0.12em”, textTransform: “uppercase”, fontWeight: 700, marginBottom: 4 } }, “Ready to Play”),
-ce(“div”, { style: { fontSize: 24, fontWeight: 900, color: “#fff”, overflow: “hidden”, textOverflow: “ellipsis”, whiteSpace: “nowrap” } }, course.name),
-course.address ? ce(“div”, { style: { fontSize: 12, color: “rgba(255,255,255,0.6)”, marginTop: 3 } }, course.address) : null
-),
-ce(“button”, {
-onClick: function() { setShowHC(true); },
-style: { flexShrink: 0, marginLeft: 12, padding: “7px 13px”, borderRadius: 10, background: “rgba(255,255,255,0.12)”, border: “1px solid rgba(255,255,255,0.2)”, color: “rgba(255,255,255,0.85)”, fontSize: 11, fontWeight: 700, cursor: “pointer” }
-}, “HCP”)
-)
-),
-// Content
-ce(“div”, { style: { flex: 1, overflowY: “auto”, padding: “20px 24px 40px”, display: “flex”, flexDirection: “column”, gap: 20 } },
-// Holes toggle
-ce(“div”, null,
-ce(“div”, { style: { fontSize: 10, color: C.muted, textTransform: “uppercase”, letterSpacing: “0.08em”, fontWeight: 600, marginBottom: 10 } }, “Holes”),
-ce(“div”, { style: { display: “flex”, gap: 10 } },
-[9, 18].map(function(h) {
-var active = prHoles === h;
-return ce(“button”, { key: h, onClick: function() { setPrHoles(h); },
-style: { flex: 1, padding: “14px”, borderRadius: 12, cursor: “pointer”, fontSize: 22, fontWeight: 900, border: “2px solid “ + (active ? MG : C.btnBorder), background: active ? MG : C.btnBg, color: active ? “#fff” : C.muted }
-}, h);
-})
-)
-),
-// Par per hole
-ce(“div”, null,
-ce(“div”, { style: { display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 12 } },
-ce(“div”, { style: { fontSize: 10, color: C.muted, textTransform: “uppercase”, letterSpacing: “0.08em”, fontWeight: 600 } }, “Par per Hole”),
-ce(“div”, { style: { fontSize: 13, fontWeight: 800, color: MG, background: “#E8F5EE”, padding: “4px 12px”, borderRadius: 8 } }, “Total Par: “ + prTotalPar)
-),
-ce(“div”, { style: { display: “flex”, flexDirection: “column”, gap: 6 } },
-Array.from({ length: prHoles }, function(_, i) {
-return ce(ParRow, { key: i, index: i, pars: prPars, onChange: handlePrPar });
-})
-)
-),
-// Map
-(course.lat && course.lng) ? ce(CourseMap, { lat: course.lat, lng: course.lng, name: course.name }) : null,
-// Tee off button
-ce(“button”, { onClick: handleStart,
-style: { width: “100%”, padding: “18px”, borderRadius: 14, background: MG, border: “none”, color: “#fff”, fontSize: 16, fontWeight: 900 }
-}, “Tee Off  “ + prHoles + “ holes  Par “ + prTotalPar)
-)
-);
-}
-
-// –– MAIN APP —————————————————————
-function AppInner() {
-var co = useState(function() { return loadJSON(COURSE_KEY, []); });
-var courses = co[0]; var setCourses = co[1];
-var hi = useState(function() { return loadJSON(HISTORY_KEY, []); });
-var history = hi[0]; var setHistory = hi[1];
-var hco = useState(function() { return loadJSON(HOME_COURSE_KEY, null); });
-var homeCourse = hco[0]; var setHomeCourse = hco[1];
-
-var vi = useState(“setup”); var view = vi[0]; var setView = vi[1];
-var sv = useState(false); var showSearch = sv[0]; var setShowSearch = sv[1];
-var shs = useState(false); var showHistory = shs[0]; var setShowHistory = shs[1];
-
-var sc = useState(null); var selectedCourse = sc[0]; var setSelectedCourse = sc[1];
-var ch = useState(0); var currentHole = ch[0]; var setCurrentHole = ch[1];
-var sq = useState([]); var scores = sq[0]; var setScores = sq[1];
-var ec = useState(null); var editingCourse = ec[0]; var setEditingCourse = ec[1];
-var prc = useState(null); var preRoundCourse = prc[0]; var setPreRoundCourse = prc[1];
-
-var currentPar      = selectedCourse && scores.length > currentHole ? selectedCourse.pars[currentHole] : 4;
-var currentHoleData = scores.length > currentHole ? scores[currentHole] : { score: 4, putts: 2, gir: false };
-var runningDiff     = (view === “playing” && selectedCourse) ? scores.slice(0, currentHole + 1).reduce(function(a, b, i) {
-return a + (b.score - selectedCourse.pars[i]);
-}, 0) : 0;
-
-function persistCourses(list) { setCourses(list); saveJSON(COURSE_KEY, list); }
-
-function goToPreRound(course) {
-setPreRoundCourse(course);
-setView(“preRound”);
-}
-function setHomeCourseFn(course) { setHomeCourse(course); saveJSON(HOME_COURSE_KEY, course); }
-
-function startRound(course) {
-setSelectedCourse(course);
-setScores(course.pars.slice(0, course.holes).map(function(p) { return emptyHole(p); }));
-setCurrentHole(0);
-setView(“playing”);
-}
-
-function updateHole(key, delta) {
-setScores(function(prev) {
-var n = prev.map(function(h) { return Object.assign({}, h); });
-var cur = n[currentHole];
-if (key === “gir”) { cur.gir = !cur.gir; }
-else {
-var val = cur[key] + delta;
-if (key === “score”) val = Math.max(1, Math.min(10, val));
-if (key === “putts”) val = Math.max(0, Math.min(10, val));
-cur[key] = val;
-}
-return n;
-});
-}
-
-function setQuickScore(val) {
-setScores(function(prev) {
-var n = prev.map(function(h) { return Object.assign({}, h); });
-if (val >= 1 && val <= 10) n[currentHole].score = val;
-return n;
-});
-}
-
-// –– SEARCH ––
-if (showSearch) {
-return ce(CourseSearch, {
-onSelect: function(result) {
-setShowSearch(false);
-if (result.fromDB) {
-var nc = { id: “” + Date.now(), name: result.name, address: result.address, holes: result.holes, pars: result.pars, par: result.par, lat: result.lat, lng: result.lng };
-persistCourses(courses.concat([nc]));
-goToPreRound(nc);
-} else {
-setEditingCourse({ id: null, name: result.name, holes: 18, pars: Array(18).fill(4), address: result.address, lat: result.lat, lng: result.lng });
-setView(“addCourse”);
-}
-},
-onCancel: function() { setShowSearch(false); }
-});
-}
-
-// –– SETUP ––
-if (view === “setup”) {
-return ce(“div”, { style: { flex: 1, display: “flex”, flexDirection: “column”, overflow: “hidden”, background: C.bg } },
-// History overlay
-showHistory ? ce(HistoryLog, { history: history, onClose: function() { setShowHistory(false); } }) : null,
-// Green header
-ce(“div”, { style: { background: C.header, padding: “28px 24px 22px”, flexShrink: 0 } },
-ce(“div”, { style: { textAlign: “center” } },
-ce(“div”, { style: { fontSize: 10, color: MYB, fontWeight: 700, textTransform: “uppercase”, letterSpacing: “0.14em”, marginBottom: 6 } }, “A Tradition Unlike Any Other”),
-ce(“div”, { style: { fontSize: 36, fontWeight: 900, color: “#fff”, letterSpacing: “-0.02em” } }, “Golf Tracker”)
-)
-),
-// Content
-ce(“div”, { style: { flex: 1, overflowY: “auto”, padding: “20px 20px 32px” } },
-// Find a Course (primary CTA)
-ce(“button”, { onClick: function() { setShowSearch(true); }, style: { width: “100%”, padding: “16px 18px”, borderRadius: 14, background: MG, border: “none”, cursor: “pointer”, display: “flex”, alignItems: “center”, justifyContent: “space-between”, marginBottom: 10 } },
-ce(“div”, { style: { display: “flex”, alignItems: “center”, gap: 12 } },
-ce(“div”, { style: { width: 36, height: 36, borderRadius: 9, background: “rgba(255,255,255,0.15)”, display: “flex”, alignItems: “center”, justifyContent: “center”, flexShrink: 0, fontSize: 18, color: MYB } }, “Q”),
-ce(“div”, { style: { textAlign: “left” } },
-ce(“div”, { style: { fontSize: 15, fontWeight: 800, color: “#fff” } }, “Find a Course”),
-ce(“div”, { style: { fontSize: 11, color: “rgba(255,255,255,0.65)”, marginTop: 2 } }, “Search or browse 37 local courses”)
-)
-),
-ce(“div”, { style: { fontSize: 20, color: “rgba(255,255,255,0.5)” } }, “>”)
-),
-
-```
-    // Home course card
-    homeCourse ? ce("div", { style: { marginBottom: 10 } },
-      ce("div", { style: { fontSize: 9, color: C.muted, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 6 } }, "Home Course"),
-      ce("button", { onClick: function() { goToPreRound(homeCourse); }, style: { width: "100%", padding: "15px 18px", borderRadius: 14, background: "#FAFFF8", border: "2px solid " + MG + "44", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" } },
-        ce("div", { style: { display: "flex", alignItems: "center", gap: 12 } },
-          ce("div", { style: { width: 36, height: 36, borderRadius: 9, background: "#E8F5EE", border: "1.5px solid " + MG + "55", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } },
-            ce("svg", { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: MG, strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" },
-              ce("line", { x1: "12", y1: "2", x2: "12", y2: "18" }),
-              ce("circle", { cx: "12", cy: "20", r: "2", fill: MG, stroke: "none" }),
-              ce("path", { d: "M12 6 Q18 9 12 12" })
-            )
-          ),
-          ce("div", { style: { textAlign: "left" } },
-            ce("div", { style: { fontSize: 15, fontWeight: 800, color: MG } }, homeCourse.name),
-            ce("div", { style: { fontSize: 11, color: C.muted, marginTop: 2 } }, homeCourse.holes + " holes  Par " + (homeCourse.pars ? homeCourse.pars.slice(0, homeCourse.holes).reduce(function(a, b) { return a + b; }, 0) : homeCourse.par || "?"))
-          )
-        ),
-        ce("div", { style: { fontSize: 12, fontWeight: 800, color: MG, background: "#E8F5EE", padding: "7px 14px", borderRadius: 9 } }, "Play Now >")
-      )
-    ) : null,
-
-    // My Courses
-    ce("button", { onClick: function() { setView("courses"); }, style: { width: "100%", padding: "14px 18px", borderRadius: 14, background: C.card, border: "1.5px solid " + C.cardBorder, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 } },
-      ce("div", { style: { display: "flex", alignItems: "center", gap: 12 } },
-        ce("div", { style: { width: 36, height: 36, borderRadius: 9, background: "#E8F5EE", border: "1px solid " + MG + "33", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } },
-          ce("svg", { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: MG, strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" },
-            ce("rect", { x: "3", y: "4", width: "18", height: "16", rx: "2" }),
-            ce("line", { x1: "7", y1: "9", x2: "17", y2: "9" }),
-            ce("line", { x1: "7", y1: "13", x2: "13", y2: "13" })
-          )
-        ),
-        ce("div", { style: { textAlign: "left" } },
-          ce("div", { style: { fontSize: 14, fontWeight: 700, color: C.text } }, "My Courses"),
-          ce("div", { style: { fontSize: 11, color: C.muted, marginTop: 2 } }, courses.length > 0 ? courses.length + " saved" : "No courses saved yet")
-        )
-      ),
-      ce("div", { style: { fontSize: 18, color: C.muted } }, ">")
-    ),
-
-    // Quick start
-    ce("button", { onClick: function() { startRound({ id: "quick18", name: "Standard Round", holes: 18, pars: Array(18).fill(4) }); }, style: { width: "100%", padding: "13px 18px", borderRadius: 14, background: "transparent", border: "1.5px solid " + C.cardBorder, cursor: "pointer", color: C.muted, fontSize: 13 } }, "Quick Start  18 holes  All Par 4"),
-
-    // Recent rounds
-    history.length > 0 ? ce("div", { style: { marginTop: 24 } },
-      ce("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
-        ce("div", { style: { fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600 } }, "Recent Rounds"),
-        ce("button", { onClick: function() { setShowHistory(true); }, style: { fontSize: 10, padding: "4px 10px", borderRadius: 8, background: "#E8F5EE", border: "1px solid " + MG + "33", color: MG, fontWeight: 700 } }, "All (" + history.length + ")")
-      ),
-      ce("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
-        history.slice(0, 3).map(function(r, i) {
-          var d = r.scoreDiff;
-          var dc = d < 0 ? "#0B6E3F" : d === 0 ? MG : d <= 5 ? PC : RED;
-          var dbg = d < 0 ? "#D4EDDA" : d === 0 ? "#E8F5EE" : d <= 5 ? "#FFF0EB" : "#FFEBEB";
-          return ce("div", { key: i, style: { background: C.card, borderRadius: 12, padding: "12px 14px", border: "1px solid " + C.cardBorder, display: "flex", alignItems: "center", justifyContent: "space-between" } },
-            ce("div", null,
-              ce("div", { style: { fontSize: 13, fontWeight: 700, color: C.text } }, r.courseName || "Round"),
-              ce("div", { style: { fontSize: 10, color: C.muted, marginTop: 2 } }, r.holes + " holes   " + r.date)
-            ),
-            ce("div", { style: { textAlign: "right" } },
-              ce("div", { style: { fontSize: 22, fontWeight: 900, color: dc, background: dbg, padding: "4px 10px", borderRadius: 9 } }, diffStr(r.scoreDiff)),
-              ce("div", { style: { fontSize: 9, color: C.muted, marginTop: 2 } }, r.totalScore + " / Par " + r.totalPar)
-            )
-          );
-        })
-      )
-    ) : null
-  )
-);
-```
-
-}
-
-// –– COURSES ––
-if (view === “courses”) {
-return ce(MyCourses, {
-courses: courses,
-onSelect: goToPreRound,
-onAdd: function() { setEditingCourse(null); setView(“addCourse”); },
-onEdit: function(c) { setEditingCourse(c); setView(“editCourse”); },
-onDelete: function(id) { persistCourses(courses.filter(function(c) { return c.id !== id; })); },
-onBack: function() { setView(“setup”); },
-homeCourseId: homeCourse ? homeCourse.id : null,
-onSetHome: setHomeCourseFn
-});
-}
-
-if (view === “addCourse”) {
-return ce(CourseEditor, {
-initial: editingCourse,
-showMap: true,
-onSave: function(course) { persistCourses(courses.concat([course])); goToPreRound(course); },
-onCancel: function() { setView(courses.length > 0 ? “courses” : “setup”); }
-});
-}
-
-if (view === “editCourse”) {
-return ce(CourseEditor, {
-initial: editingCourse,
-showMap: true,
-onSave: function(updated) {
-persistCourses(courses.map(function(c) { return c.id === updated.id ? updated : c; }));
-setView(“courses”);
-},
-onCancel: function() { setView(“courses”); }
-});
-}
-
-// –– PRE-ROUND ––
-if (view === “preRound” && preRoundCourse) {
-return ce(PreRoundSetup, {
-course: preRoundCourse,
-onStart: function(updatedCourse) {
-// Persist any par edits back to saved courses
-var exists = courses.filter(function(c) { return c.id === updatedCourse.id; });
-if (exists.length > 0) {
-persistCourses(courses.map(function(c) { return c.id === updatedCourse.id ? updatedCourse : c; }));
-}
-startRound(updatedCourse);
-},
-onBack: function() { setView(“setup”); setPreRoundCourse(null); }
-});
-}
-
-// –– PLAYING ––
-if (view === “playing” && selectedCourse) {
-var atMin = currentHoleData.score <= 1;
-var atMax = currentHoleData.score >= 10;
-var hColor = holeColor(currentHoleData.score, currentPar);
-var hBg    = holeBg(currentHoleData.score, currentPar);
-var quickTaps = [{ d: -1, label: “Birdie” }, { d: 0, label: “Par” }, { d: 1, label: “Bogey” }, { d: 2, label: “Dbl” }];
-var holeLbl = (function() {
-var d = currentHoleData.score - currentPar;
-if (d <= -2) return “Eagle”; if (d === -1) return “Birdie”;
-if (d === 0) return “Par”; if (d === 1) return “Bogey”; if (d === 2) return “Double”;
-return “+” + d;
-})();
-var rdColor = runningDiff < 0 ? “#0B6E3F” : runningDiff === 0 ? MG : PC;
-
-```
-return ce("div", { style: { flex: 1, display: "flex", flexDirection: "column", background: C.bg } },
-  // Green header
-  ce("div", { style: { background: C.header, padding: "16px 24px 14px", flexShrink: 0 } },
-    ce("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 } },
-      ce("div", null,
-        ce("div", { style: { fontSize: 10, color: MYB, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" } }, selectedCourse.name),
-        ce("div", { style: { fontSize: 26, fontWeight: 900, color: "#fff", marginTop: 2 } },
-          "Hole " + (currentHole + 1),
-          ce("span", { style: { fontSize: 14, color: "rgba(255,255,255,0.55)", fontWeight: 400, marginLeft: 8 } }, "of " + selectedCourse.holes)
-        )
-      ),
-      ce("div", { style: { textAlign: "right" } },
-        ce("div", { style: { fontSize: 10, color: "rgba(255,255,255,0.6)" } }, "Score"),
-        ce("div", { style: { fontSize: 30, fontWeight: 900, color: runningDiff === 0 ? "#fff" : runningDiff < 0 ? MYB : "#FFB5A0" } }, diffStr(runningDiff)),
-        ce("div", { style: { fontSize: 10, color: "rgba(255,255,255,0.5)" } }, "Thru " + (currentHole + 1))
-      )
-    ),
-    // Hole strip
-    ce("div", { style: { overflowX: "auto", display: "flex", gap: 5, paddingBottom: 2 } },
-      Array.from({ length: selectedCourse.holes }, function(_, i) {
-        var s = scores[i];
-        var isActive = i === currentHole;
-        var sc = s ? holeColor(s.score, selectedCourse.pars[i]) : null;
-        var sbg = s ? holeBg(s.score, selectedCourse.pars[i]) : "rgba(255,255,255,0.1)";
-        return ce("div", {
-          key: i, onClick: function() { setCurrentHole(i); },
-          style: { flexShrink: 0, width: 32, height: 42, borderRadius: 7, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "2px solid " + (isActive ? MYB : "transparent"), background: isActive ? "rgba(251,225,34,0.2)" : sbg, gap: 1 }
-        },
-          ce("div", { style: { fontSize: 8, color: isActive ? MYB : "rgba(255,255,255,0.5)" } }, i + 1),
-          ce("div", { style: { fontSize: 12, fontWeight: 800, color: s ? (isActive ? MYB : sc) : "rgba(255,255,255,0.3)" } }, s ? s.score : "-")
-        );
-      })
-    )
-  ),
-
-  // Score area
-  ce("div", { style: { flex: 1, overflowY: "auto", padding: "20px 24px 12px" } },
-    // Big score
-    ce("div", { style: { textAlign: "center", marginBottom: 20 } },
-      ce("div", { style: { fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 4 } }, "PAR " + currentPar),
-      ce("div", { style: { fontSize: 100, fontWeight: 900, color: hColor, lineHeight: 1, marginBottom: 4 } }, currentHoleData.score),
-      ce("div", { style: { display: "inline-block", fontSize: 14, fontWeight: 800, color: hColor, background: hBg, padding: "4px 14px", borderRadius: 20, marginBottom: 18, border: "1px solid " + hColor + "33" } }, holeLbl),
-      ce("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: 32 } },
-        ce("button", {
-          onClick: function() { updateHole("score", -1); },
-          style: { width: 72, height: 72, borderRadius: 22, fontSize: 36, fontWeight: 700, background: atMin ? C.bgAlt : C.card, border: "2px solid " + (atMin ? C.cardBorder : C.border), color: atMin ? C.mutedLight : C.text }
-        }, "-"),
-        ce("button", {
-          onClick: function() { updateHole("score", 1); },
-          style: { width: 72, height: 72, borderRadius: 22, fontSize: 36, fontWeight: 700, background: atMax ? C.bgAlt : MG, border: "none", color: atMax ? C.mutedLight : "#fff" }
-        }, "+")
-      )
-    ),
-
-    // Quick taps
-    ce("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
-      quickTaps.map(function(qt) {
-        var val = currentPar + qt.d;
-        var active = currentHoleData.score === val;
-        var tc = holeColor(val, currentPar);
-        var tbg = holeBg(val, currentPar);
-        return ce("button", {
-          key: qt.label,
-          onClick: function() { if (val >= 1 && val <= 10) setQuickScore(val); },
-          style: { flex: 1, padding: "10px 2px", borderRadius: 10, cursor: "pointer", fontSize: 11, fontWeight: 700, border: "2px solid " + (active ? tc : C.cardBorder), background: active ? tbg : C.card, color: active ? tc : C.muted }
-        }, qt.label);
-      })
-    ),
-
-    // Putts
-    ce("div", { style: { background: C.card, borderRadius: 14, padding: "14px 18px", border: "1px solid " + C.cardBorder, display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
-      ce("div", { style: { fontSize: 14, fontWeight: 700, color: C.text } }, "Putts"),
-      ce("div", { style: { display: "flex", alignItems: "center", gap: 18 } },
-        ce("button", { onClick: function() { updateHole("putts", -1); }, style: { width: 40, height: 40, borderRadius: 10, background: C.btnBg, border: "1.5px solid " + C.btnBorder, color: C.text, fontSize: 22, fontWeight: 700 } }, "-"),
-        ce("div", { style: { fontSize: 26, fontWeight: 900, color: MG, minWidth: 32, textAlign: "center" } }, currentHoleData.putts),
-        ce("button", { onClick: function() { updateHole("putts", 1); }, style: { width: 40, height: 40, borderRadius: 10, background: MG, border: "none", color: "#fff", fontSize: 22, fontWeight: 700 } }, "+")
-      )
-    ),
-
-    // GIR
-    ce("button", {
-      onClick: function() { updateHole("gir", 0); },
-      style: { width: "100%", padding: "14px 18px", borderRadius: 14, cursor: "pointer", fontSize: 14, fontWeight: 700, background: currentHoleData.gir ? "#E8F5EE" : C.card, color: currentHoleData.gir ? MG : C.muted, border: "2px solid " + (currentHoleData.gir ? MG + "66" : C.cardBorder) }
-    }, currentHoleData.gir ? "Green in Regulation" : "Missed Green  (tap to mark GIR)")
-  ),
-
-  // Nav
-  ce("div", { style: { padding: "12px 20px", display: "flex", gap: 10, background: C.card, borderTop: "1px solid " + C.cardBorder, flexShrink: 0 } },
-    currentHole > 0 ? ce("button", { onClick: function() { setCurrentHole(function(h) { return h - 1; }); }, style: { flex: 1, padding: "15px", borderRadius: 12, background: C.bgAlt, border: "1px solid " + C.cardBorder, color: C.muted, fontSize: 14, fontWeight: 700 } }, "< Back") : null,
-    currentHole < selectedCourse.holes - 1
-      ? ce("button", { onClick: function() { setCurrentHole(function(h) { return h + 1; }); }, style: { flex: 2, padding: "15px", borderRadius: 12, background: MG, border: "none", color: "#fff", fontWeight: 800, fontSize: 15 } }, "Next Hole >")
-      : ce("button", { onClick: function() { setView("summary"); }, style: { flex: 2, padding: "15px", borderRadius: 12, background: MY, border: "none", color: "#000", fontWeight: 800, fontSize: 15 } }, "Finish Round")
-  )
-);
-```
-
-}
-
-// –– SUMMARY ––
-if (view === “summary” && selectedCourse) {
-var totalScore = scores.reduce(function(a, b) { return a + b.score; }, 0);
-var totalPar   = selectedCourse.pars.slice(0, selectedCourse.holes).reduce(function(a, b) { return a + b; }, 0);
-var totalPutts = scores.reduce(function(a, b) { return a + b.putts; }, 0);
-var girCount   = scores.filter(function(s) { return s.gir; }).length;
-var finalDiff  = totalScore - totalPar;
-var xpEarned   = calcXP(totalScore, totalPar, selectedCourse.holes);
-var bigColor   = finalDiff < 0 ? “#0B6E3F” : finalDiff === 0 ? MG : finalDiff <= 5 ? PC : RED;
-var bigBg      = finalDiff < 0 ? “#D4EDDA” : finalDiff === 0 ? “#E8F5EE” : finalDiff <= 5 ? “#FFF0EB” : “#FFEBEB”;
-var activePars = selectedCourse.pars.slice(0, selectedCourse.holes);
-var f9Par      = activePars.slice(0, 9).reduce(function(a, b) { return a + b; }, 0);
-var b9Par      = selectedCourse.holes === 18 ? activePars.slice(9).reduce(function(a, b) { return a + b; }, 0) : 0;
-var f9Score    = scores.slice(0, 9).reduce(function(a, b) { return a + b.score; }, 0);
-var b9Score    = selectedCourse.holes === 18 ? scores.slice(9).reduce(function(a, b) { return a + b.score; }, 0) : 0;
-
-```
-return ce("div", { style: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: C.bg } },
-  // Green header
-  ce("div", { style: { background: C.header, padding: "20px 24px 18px", flexShrink: 0 } },
-    ce("div", { style: { textAlign: "center" } },
-      ce("div", { style: { fontSize: 10, color: MYB, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 } }, "Leaderboard Updated"),
-      selectedCourse.name !== "Standard Round" ? ce("div", { style: { fontSize: 14, color: "rgba(255,255,255,0.65)", marginBottom: 4 } }, selectedCourse.name) : null,
-      ce("div", { style: { fontSize: 72, fontWeight: 900, lineHeight: 1, color: "#fff" } }, diffStr(finalDiff)),
-      ce("div", { style: { fontSize: 14, color: "rgba(255,255,255,0.6)", marginTop: 4 } }, totalScore + " strokes   Par " + totalPar)
-    )
-  ),
-  // Scrollable content
-  ce("div", { style: { flex: 1, overflowY: "auto", padding: "16px 20px 40px" } },
-    // XP banner
-    ce("div", { style: { background: "#E8F5EE", border: "1.5px solid " + MG + "44", borderRadius: 14, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } },
-      ce("div", null,
-        ce("div", { style: { fontSize: 13, color: MG, fontWeight: 800 } }, "XP Earned"),
-        ce("div", { style: { fontSize: 11, color: C.muted } }, "Score bonus included")
-      ),
-      ce("div", { style: { fontSize: 38, fontWeight: 900, color: MG } }, "+" + xpEarned)
-    ),
-    // Stats row
-    ce("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
-      [{ l: "Putts", v: totalPutts }, { l: "Avg Putts", v: (totalPutts / selectedCourse.holes).toFixed(1) }, { l: "GIR", v: girCount + "/" + selectedCourse.holes }].map(function(item) {
-        return ce("div", { key: item.l, style: { flex: 1, background: C.card, borderRadius: 12, padding: "12px 8px", border: "1px solid " + C.cardBorder, textAlign: "center" } },
-          ce("div", { style: { fontSize: 18, fontWeight: 900, color: MG } }, item.v),
-          ce("div", { style: { fontSize: 9, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 3 } }, item.l)
-        );
-      })
-    ),
-    // Front/Back
-    selectedCourse.holes === 18 ? ce("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
-      [["Front 9", f9Score, f9Par], ["Back 9", b9Score, b9Par]].map(function(trio) {
-        var d = trio[1] - trio[2];
-        var dc = d < 0 ? "#0B6E3F" : d === 0 ? MG : d <= 3 ? PC : RED;
-        var dbg = d < 0 ? "#D4EDDA" : d === 0 ? "#E8F5EE" : d <= 3 ? "#FFF0EB" : "#FFEBEB";
-        return ce("div", { key: trio[0], style: { flex: 1, background: C.card, borderRadius: 12, padding: "12px", border: "1px solid " + C.cardBorder, textAlign: "center" } },
-          ce("div", { style: { fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 } }, trio[0]),
-          ce("div", { style: { fontSize: 24, fontWeight: 900, color: dc, background: dbg, borderRadius: 8, padding: "4px 0" } }, diffStr(d)),
-          ce("div", { style: { fontSize: 11, color: C.muted, marginTop: 4 } }, trio[1] + " / Par " + trio[2])
-        );
-      })
-    ) : null,
-    // Scorecard table
-    ce("div", { style: { background: C.card, borderRadius: 14, border: "1px solid " + C.cardBorder, overflow: "hidden", marginBottom: 16 } },
-      ce("div", { style: { display: "flex", padding: "8px 14px", borderBottom: "1px solid " + C.cardBorder, background: C.bgAlt } },
-        ce("div", { style: { flex: 1, fontSize: 10, color: C.muted, textTransform: "uppercase", fontWeight: 600 } }, "Hole"),
-        ce("div", { style: { width: 36, textAlign: "center", fontSize: 10, color: C.muted, textTransform: "uppercase", fontWeight: 600 } }, "Par"),
-        ce("div", { style: { width: 46, textAlign: "center", fontSize: 10, color: C.muted, textTransform: "uppercase", fontWeight: 600 } }, "Score"),
-        ce("div", { style: { width: 36, textAlign: "center", fontSize: 10, color: C.muted, textTransform: "uppercase", fontWeight: 600 } }, "+/-"),
-        ce("div", { style: { width: 36, textAlign: "center", fontSize: 10, color: C.muted, textTransform: "uppercase", fontWeight: 600 } }, "Putts")
-      ),
-      scores.map(function(s, i) {
-        var p = selectedCourse.pars[i];
-        var d = s.score - p;
-        var sc = d < 0 ? "#0B6E3F" : d === 0 ? MG : d === 1 ? PC : RED;
-        var sbg = d < 0 ? "#D4EDDA" : d === 0 ? "#F0FAF4" : d === 1 ? "#FFF5F0" : "#FFEEEE";
-        return ce("div", { key: i, style: { display: "flex", alignItems: "center", padding: "7px 14px", borderBottom: i < scores.length - 1 ? "1px solid " + C.cardBorder : "none", background: i % 2 === 0 ? "transparent" : C.bgAlt + "66" } },
-          ce("div", { style: { flex: 1, fontSize: 12, color: C.muted, display: "flex", alignItems: "center", gap: 5 } },
-            i + 1, s.gir ? ce("div", { style: { width: 5, height: 5, borderRadius: "50%", background: MG } }) : null
-          ),
-          ce("div", { style: { width: 36, textAlign: "center", fontSize: 12, color: C.muted } }, p),
-          ce("div", { style: { width: 46, textAlign: "center", fontSize: 14, fontWeight: 800, color: sc, background: sbg, borderRadius: 6, margin: "2px 0" } }, s.score),
-          ce("div", { style: { width: 36, textAlign: "center", fontSize: 12, fontWeight: 700, color: sc } }, diffStr(d)),
-          ce("div", { style: { width: 36, textAlign: "center", fontSize: 12, color: C.muted } }, s.putts)
-        );
-      }),
-      ce("div", { style: { display: "flex", alignItems: "center", padding: "10px 14px", background: C.bgAlt, borderTop: "2px solid " + C.cardBorder } },
-        ce("div", { style: { flex: 1, fontSize: 13, fontWeight: 800, color: C.text } }, "Total"),
-        ce("div", { style: { width: 36, textAlign: "center", fontSize: 13, fontWeight: 700, color: C.text } }, totalPar),
-        ce("div", { style: { width: 46, textAlign: "center", fontSize: 16, fontWeight: 900, color: bigColor, background: bigBg, borderRadius: 7, margin: "2px 0" } }, totalScore),
-        ce("div", { style: { width: 36, textAlign: "center", fontSize: 14, fontWeight: 900, color: bigColor } }, diffStr(finalDiff)),
-        ce("div", { style: { width: 36, textAlign: "center", fontSize: 13, fontWeight: 700, color: MG } }, totalPutts)
-      )
-    ),
-    ce("div", { style: { fontSize: 10, color: C.mutedLight, marginBottom: 16, textAlign: "center" } }, "Green dot in scorecard = GIR"),
-    ce("button", {
-      onClick: function() {
-        var round = { courseId: selectedCourse.id, courseName: selectedCourse.name, holes: selectedCourse.holes, pars: selectedCourse.pars.slice(), scoreDiff: finalDiff, totalScore: totalScore, totalPar: totalPar, totalPutts: totalPutts, girCount: girCount, date: new Date().toLocaleDateString(), xp: xpEarned, holeData: scores.slice() };
-        var next = [round].concat(history);
-        setHistory(next); saveJSON(HISTORY_KEY, next); setView("setup");
-      },
-      style: { width: "100%", padding: "16px", borderRadius: 14, background: MG, border: "none", color: "#fff", fontSize: 15, fontWeight: 800 }
-    }, "Save Round  +" + xpEarned + " XP"),
-    ce("button", { onClick: function() { setView("playing"); }, style: { width: "100%", marginTop: 10, padding: "13px", borderRadius: 14, background: "transparent", border: "1.5px solid " + C.cardBorder, color: C.muted, fontSize: 13 } }, "< Back to Scorecard")
-  )
-);
-```
-
-}
-
-// Fallback / overlay-only state
-return ce(“div”, { style: { flex: 1, background: C.bg } },
-showHistory ? ce(HistoryLog, { history: history, onClose: function() { setShowHistory(false); } }) : null
-);
-}
-
-ReactDOM.createRoot(document.getElementById(“root”)).render(ce(AppInner, null));
-</script>
-
+  <div class="app">
+    <h1>Golf Tracker</h1>
+    <div id="root"></div>
+  </div>
+
+  <script>
+    // ---------- Utilities ----------
+    function loadRounds() {
+      try {
+        const raw = localStorage.getItem("golf_rounds_v1");
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.error("Failed to load rounds", e);
+        return [];
+      }
+    }
+
+    function saveRounds(rounds) {
+      try {
+        localStorage.setItem("golf_rounds_v1", JSON.stringify(rounds));
+      } catch (e) {
+        console.error("Failed to save rounds", e);
+      }
+    }
+
+    function calculateHandicapFromRounds(rounds) {
+      if (!rounds.length) return null;
+      // Use last 5 rounds (or fewer if less than 5)
+      const recent = [...rounds].sort((a, b) => b.date - a.date).slice(0, 5);
+      // Simple handicap: average (score - par)
+      let diffs = recent
+        .filter(r => typeof r.totalScore === "number" && typeof r.coursePar === "number")
+        .map(r => r.totalScore - r.coursePar);
+      if (!diffs.length) return null;
+      const avg = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+      return Math.round(avg * 10) / 10;
+    }
+
+    function formatDate(ts) {
+      const d = new Date(ts);
+      return d.toLocaleDateString();
+    }
+
+    // ---------- App State ----------
+    const state = {
+      rounds: loadRounds(),
+      view: "setup", // "setup" | "play" | "history"
+      currentRound: null,
+    };
+
+    function setState(patch) {
+      Object.assign(state, patch);
+      render();
+    }
+
+    // ---------- Start Round / Setup ----------
+    function StartView() {
+      const container = document.createElement("div");
+
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const h2 = document.createElement("h2");
+      h2.textContent = "Start a Round";
+      card.appendChild(h2);
+
+      const form = document.createElement("div");
+
+      // Game mode
+      const modeLabel = document.createElement("label");
+      modeLabel.textContent = "Game mode";
+      const modeSelect = document.createElement("select");
+      ["Stroke Play", "Match Play", "Scramble", "Wolf"].forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        modeSelect.appendChild(opt);
+      });
+
+      // Scramble variant
+      const scrambleLabel = document.createElement("label");
+      scrambleLabel.textContent = "Scramble variant";
+      const scrambleSelect = document.createElement("select");
+      ["2-Player Scramble", "4-Player Scramble", "Solo Scramble", "Texas Scramble", "Florida Scramble"].forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v;
+        opt.textContent = v;
+        scrambleSelect.appendChild(opt);
+      });
+
+      // Wolf variant
+      const wolfLabel = document.createElement("label");
+      wolfLabel.textContent = "Wolf variant";
+      const wolfSelect = document.createElement("select");
+      ["Classic Wolf", "Hammer Wolf", "Blind Wolf", "Simplified Wolf", "Progressive Wolf"].forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v;
+        opt.textContent = v;
+        wolfSelect.appendChild(opt);
+      });
+
+      // Players
+      const playersLabel = document.createElement("label");
+      playersLabel.textContent = "Players (comma separated)";
+      const playersInput = document.createElement("input");
+      playersInput.type = "text";
+      playersInput.placeholder = "e.g. Jesse, Pat, Sam, Riley";
+
+      // Course par
+      const parLabel = document.createElement("label");
+      parLabel.textContent = "Course par (18 holes)";
+      const parInput = document.createElement("input");
+      parInput.type = "number";
+      parInput.min = "60";
+      parInput.max = "80";
+      parInput.value = "72";
+
+      // Notes
+      const notesLabel = document.createElement("label");
+      notesLabel.textContent = "Notes (optional)";
+      const notesInput = document.createElement("input");
+      notesInput.type = "text";
+      notesInput.placeholder = "Course name, tees, conditions...";
+
+      form.appendChild(modeLabel);
+      form.appendChild(modeSelect);
+      form.appendChild(scrambleLabel);
+      form.appendChild(scrambleSelect);
+      form.appendChild(wolfLabel);
+      form.appendChild(wolfSelect);
+      form.appendChild(playersLabel);
+      form.appendChild(playersInput);
+      form.appendChild(parLabel);
+      form.appendChild(parInput);
+      form.appendChild(notesLabel);
+      form.appendChild(notesInput);
+
+      card.appendChild(form);
+
+      const actions = document.createElement("div");
+      actions.className = "flex-between";
+      const left = document.createElement("div");
+      const right = document.createElement("div");
+
+      const startBtn = document.createElement("button");
+      startBtn.textContent = "Start Round";
+      startBtn.onclick = () => {
+        const mode = modeSelect.value;
+        const scrambleVariant = scrambleSelect.value;
+        const wolfVariant = wolfSelect.value;
+        const playersRaw = playersInput.value.trim();
+        const par = parseInt(parInput.value, 10) || 72;
+
+        const players = playersRaw
+          ? playersRaw.split(",").map(p => p.trim()).filter(Boolean)
+          : ["Player 1"];
+
+        // Basic validation for Wolf (needs 4 players)
+        if (mode === "Wolf" && players.length !== 4) {
+          alert("Wolf requires exactly 4 players.");
+          return;
+        }
+
+        const round = {
+          id: Date.now(),
+          date: Date.now(),
+          mode,
+          scrambleVariant: mode === "Scramble" ? scrambleVariant : null,
+          wolfVariant: mode === "Wolf" ? wolfVariant : null,
+          players,
+          scores: {}, // { playerName: [per-hole scores] }
+          coursePar: par,
+          notes: notesInput.value.trim() || "",
+          totalScore: null,
+        };
+
+        players.forEach(p => {
+          round.scores[p] = Array(18).fill(null);
+        });
+
+        setState({ currentRound: round, view: "play" });
+      };
+
+      const historyBtn = document.createElement("button");
+      historyBtn.className = "secondary";
+      historyBtn.textContent = "View History";
+      historyBtn.onclick = () => setState({ view: "history" });
+
+      left.appendChild(startBtn);
+      right.appendChild(historyBtn);
+      actions.appendChild(left);
+      actions.appendChild(right);
+
+      card.appendChild(actions);
+
+      // Handicap summary
+      const hCard = document.createElement("div");
+      hCard.className = "card";
+      const hTitle = document.createElement("h3");
+      hTitle.textContent = "Handicap & Recent Rounds";
+      hCard.appendChild(hTitle);
+
+      const handicap = calculateHandicapFromRounds(state.rounds);
+      const p = document.createElement("p");
+      if (handicap === null) {
+        p.textContent = "Not enough data yet. Play some rounds to establish a handicap.";
+      } else {
+        p.innerHTML = `Current handicap (last 5 rounds): <span class="pill">${handicap >= 0 ? "+" + handicap : handicap}</span>`;
+      }
+      hCard.appendChild(p);
+
+      const recent = [...state.rounds].sort((a, b) => b.date - a.date).slice(0, 5);
+      if (recent.length) {
+        const list = document.createElement("div");
+        recent.forEach(r => {
+          const row = document.createElement("div");
+          row.className = "small";
+          const diff = typeof r.totalScore === "number" && typeof r.coursePar === "number"
+            ? r.totalScore - r.coursePar
+            : null;
+          row.textContent = `${formatDate(r.date)} – ${r.mode}`;
+          if (r.scrambleVariant) row.textContent += ` (${r.scrambleVariant})`;
+          if (r.wolfVariant) row.textContent += ` (${r.wolfVariant})`;
+          if (diff !== null) {
+            const span = document.createElement("span");
+            span.className = "tag";
+            span.textContent = diff >= 0 ? `+${diff}` : diff;
+            row.appendChild(span);
+          }
+          list.appendChild(row);
+        });
+        hCard.appendChild(list);
+      } else {
+        const none = document.createElement("p");
+        none.className = "small";
+        none.textContent = "No rounds logged yet.";
+        hCard.appendChild(none);
+      }
+
+      container.appendChild(card);
+      container.appendChild(hCard);
+
+      return container;
+    }
+
+    // ---------- Play View (simple per-hole entry) ----------
+    function PlayView() {
+      const round = state.currentRound;
+      if (!round) {
+        const div = document.createElement("div");
+        div.textContent = "No active round.";
+        return div;
+      }
+
+      const container = document.createElement("div");
+
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const header = document.createElement("div");
+      header.className = "flex-between";
+
+      const left = document.createElement("div");
+      const title = document.createElement("h2");
+      title.textContent = "Round in Progress";
+      left.appendChild(title);
+
+      const meta = document.createElement("div");
+      meta.className = "small";
+      meta.textContent = `${round.mode}`;
+      if (round.scrambleVariant) meta.textContent += ` • ${round.scrambleVariant}`;
+      if (round.wolfVariant) meta.textContent += ` • ${round.wolfVariant}`;
+      left.appendChild(meta);
+
+      const right = document.createElement("div");
+      const backBtn = document.createElement("button");
+      backBtn.className = "secondary";
+      backBtn.textContent = "Back to Setup";
+      backBtn.onclick = () => setState({ view: "setup", currentRound: null });
+      right.appendChild(backBtn);
+
+      header.appendChild(left);
+      header.appendChild(right);
+      card.appendChild(header);
+
+      const tableWrap = document.createElement("div");
+      tableWrap.className = "scroll-x";
+      const table = document.createElement("table");
+      const thead = document.createElement("thead");
+      const trHead = document.createElement("tr");
+
+      const thHole = document.createElement("th");
+      thHole.textContent = "Hole";
+      trHead.appendChild(thHole);
+
+      round.players.forEach(p => {
+        const th = document.createElement("th");
+        th.textContent = p;
+        trHead.appendChild(th);
+      });
+
+      thead.appendChild(trHead);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+
+      for (let i = 0; i < 18; i++) {
+        const tr = document.createElement("tr");
+        const tdHole = document.createElement("td");
+        tdHole.textContent = i + 1;
+        tr.appendChild(tdHole);
+
+        round.players.forEach(p => {
+          const td = document.createElement("td");
+          const input = document.createElement("input");
+          input.type = "number";
+          input.min = "1";
+          input.max = "15";
+          input.style.width = "60px";
+          const val = round.scores[p][i];
+          input.value = val == null ? "" : val;
+          input.onchange = () => {
+            const v = input.value.trim();
+            round.scores[p][i] = v === "" ? null : parseInt(v, 10);
+          };
+          td.appendChild(input);
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      }
+
+      table.appendChild(tbody);
+      tableWrap.appendChild(table);
+      card.appendChild(tableWrap);
+
+      const footer = document.createElement("div");
+      footer.className = "flex-between";
+      const leftF = document.createElement("div");
+      const rightF = document.createElement("div");
+
+      const finishBtn = document.createElement("button");
+      finishBtn.textContent = "Finish Round";
+      finishBtn.onclick = () => {
+        // For now, totalScore = sum of first player's scores (or team score in Scramble/Wolf)
+        const primary = round.players[0];
+        const arr = round.scores[primary] || [];
+        const valid = arr.filter(v => typeof v === "number");
+        if (!valid.length) {
+          if (!confirm("No scores entered. Save round anyway?")) return;
+        }
+        const total = valid.reduce((a, b) => a + b, 0);
+        round.totalScore = valid.length ? total : null;
+
+        const updated = [...state.rounds, round];
+        saveRounds(updated);
+        setState({ rounds: updated, currentRound: null, view: "history" });
+      };
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.className = "secondary";
+      cancelBtn.textContent = "Cancel Round";
+      cancelBtn.onclick = () => {
+        if (confirm("Discard this round?")) {
+          setState({ currentRound: null, view: "setup" });
+        }
+      };
+
+      leftF.appendChild(finishBtn);
+      rightF.appendChild(cancelBtn);
+      footer.appendChild(leftF);
+      footer.appendChild(rightF);
+
+      card.appendChild(footer);
+
+      container.appendChild(card);
+      return container;
+    }
+
+    // ---------- History View ----------
+    function HistoryView() {
+      const container = document.createElement("div");
+
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const header = document.createElement("div");
+      header.className = "flex-between";
+
+      const left = document.createElement("div");
+      const h2 = document.createElement("h2");
+      h2.textContent = "Round History";
+      left.appendChild(h2);
+
+      const right = document.createElement("div");
+      const backBtn = document.createElement("button");
+      backBtn.className = "secondary";
+      backBtn.textContent = "Back";
+      backBtn.onclick = () => setState({ view: "setup" });
+      right.appendChild(backBtn);
+
+      header.appendChild(left);
+      header.appendChild(right);
+      card.appendChild(header);
+
+      if (!state.rounds.length) {
+        const p = document.createElement("p");
+        p.textContent = "No rounds logged yet.";
+        card.appendChild(p);
+        container.appendChild(card);
+        return container;
+      }
+
+      const tableWrap = document.createElement("div");
+      tableWrap.className = "scroll-x";
+      const table = document.createElement("table");
+      const thead = document.createElement("thead");
+      const trHead = document.createElement("tr");
+      ["Date", "Mode", "Variant", "Players", "Score", "Par", "Diff"].forEach(h => {
+        const th = document.createElement("th");
+        th.textContent = h;
+        trHead.appendChild(th);
+      });
+      thead.appendChild(trHead);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      const sorted = [...state.rounds].sort((a, b) => b.date - a.date);
+      sorted.forEach(r => {
+        const tr = document.createElement("tr");
+        const diff = typeof r.totalScore === "number" && typeof r.coursePar === "number"
+          ? r.totalScore - r.coursePar
+          : null;
+
+        const variant = r.scrambleVariant || r.wolfVariant || "";
+
+        const cols = [
+          formatDate(r.date),
+          r.mode,
+          variant,
+          r.players.join(", "),
+          r.totalScore == null ? "-" : r.totalScore,
+          r.coursePar ?? "-",
+          diff == null ? "-" : (diff >= 0 ? "+" + diff : diff),
+        ];
+
+        cols.forEach(c => {
+          const td = document.createElement("td");
+          td.textContent = c;
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      tableWrap.appendChild(table);
+      card.appendChild(tableWrap);
+
+      container.appendChild(card);
+      return container;
+    }
+
+    // ---------- Root Render ----------
+    function render() {
+      const root = document.getElementById("root");
+      root.innerHTML = "";
+
+      let viewNode;
+      if (state.view === "setup") {
+        viewNode = StartView();
+      } else if (state.view === "play") {
+        viewNode = PlayView();
+      } else if (state.view === "history") {
+        viewNode = HistoryView();
+      } else {
+        viewNode = document.createElement("div");
+        viewNode.textContent = "Unknown view.";
+      }
+
+      root.appendChild(viewNode);
+    }
+
+    render();
+  </script>
 </body>
-</html> 
+</html>
