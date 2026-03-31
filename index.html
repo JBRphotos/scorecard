@@ -2,62 +2,88 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Golf Tracker – Simple Start</title>
+  <title>Golf Tracker – Advanced Start</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 0;
       padding: 0;
-      background: #0b1724;
-      color: #f5f5f5;
+      background: radial-gradient(circle at top, #1e293b 0, #020617 55%);
+      color: #f9fafb;
     }
     .app {
-      max-width: 960px;
+      max-width: 1040px;
       margin: 0 auto;
       padding: 16px;
     }
-    h1, h2, h3 {
+    h1 {
       margin: 0 0 8px;
     }
+    .subtitle {
+      margin: 0 0 16px;
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr);
+      gap: 12px;
+    }
+    @media (max-width: 800px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
     .card {
-      background: #111c2a;
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 12px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      background: rgba(15, 23, 42, 0.96);
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      backdrop-filter: blur(10px);
+      margin-bottom: 10px;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .card-header h2 {
+      margin: 0;
+      font-size: 1rem;
+    }
+    .badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #0f766e;
+      color: #ecfeff;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
     label {
       display: block;
-      font-size: 0.9rem;
-      margin-bottom: 4px;
+      font-size: 0.8rem;
+      margin-bottom: 3px;
+      opacity: 0.9;
     }
     select, input {
       width: 100%;
       padding: 6px 8px;
-      border-radius: 4px;
+      border-radius: 6px;
       border: 1px solid #334155;
       background: #020617;
       color: #e5e7eb;
       margin-bottom: 8px;
       box-sizing: border-box;
+      font-size: 0.85rem;
     }
-    button {
-      padding: 8px 12px;
-      border-radius: 4px;
-      border: none;
-      background: #22c55e;
-      color: #022c22;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    button.secondary {
-      background: #1e293b;
-      color: #e5e7eb;
-    }
-    button:disabled {
-      opacity: 0.5;
-      cursor: default;
+    select:focus, input:focus {
+      outline: 1px solid #22c55e;
+      border-color: #22c55e;
     }
     .row {
       display: flex;
@@ -67,10 +93,58 @@
     .row > div {
       flex: 1 1 140px;
     }
+    button {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: none;
+      background: #22c55e;
+      color: #022c22;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    button.secondary {
+      background: #020617;
+      color: #e5e7eb;
+      border: 1px solid #334155;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    .flex-between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .small {
+      font-size: 0.8rem;
+      opacity: 0.8;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: #0f766e;
+      color: #ecfeff;
+      margin-right: 4px;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      background: #1e293b;
+      color: #e5e7eb;
+      margin-left: 4px;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
     }
     th, td {
       border-bottom: 1px solid #1f2937;
@@ -83,35 +157,6 @@
       top: 0;
       z-index: 1;
     }
-    .tag {
-      display: inline-block;
-      padding: 2px 6px;
-      border-radius: 999px;
-      font-size: 0.7rem;
-      background: #1e293b;
-      color: #e5e7eb;
-      margin-left: 4px;
-    }
-    .pill {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      background: #0f766e;
-      color: #ecfeff;
-      margin-right: 4px;
-    }
-    .small {
-      font-size: 0.8rem;
-      opacity: 0.8;
-    }
-    .flex-between {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
     .scroll-x {
       overflow-x: auto;
     }
@@ -120,14 +165,15 @@
 <body>
   <div class="app">
     <h1>Golf Tracker</h1>
+    <p class="subtitle">Log every round, track handicap from your last 5, and play with Scramble & Wolf variants.</p>
     <div id="root"></div>
   </div>
 
   <script>
-    // ---------- Utilities ----------
+    // ---------- Storage & Handicap ----------
     function loadRounds() {
       try {
-        const raw = localStorage.getItem("golf_rounds_v1");
+        const raw = localStorage.getItem("golf_rounds_v2");
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed : [];
@@ -139,7 +185,7 @@
 
     function saveRounds(rounds) {
       try {
-        localStorage.setItem("golf_rounds_v1", JSON.stringify(rounds));
+        localStorage.setItem("golf_rounds_v2", JSON.stringify(rounds));
       } catch (e) {
         console.error("Failed to save rounds", e);
       }
@@ -147,10 +193,8 @@
 
     function calculateHandicapFromRounds(rounds) {
       if (!rounds.length) return null;
-      // Use last 5 rounds (or fewer if less than 5)
       const recent = [...rounds].sort((a, b) => b.date - a.date).slice(0, 5);
-      // Simple handicap: average (score - par)
-      let diffs = recent
+      const diffs = recent
         .filter(r => typeof r.totalScore === "number" && typeof r.coursePar === "number")
         .map(r => r.totalScore - r.coursePar);
       if (!diffs.length) return null;
@@ -163,10 +207,10 @@
       return d.toLocaleDateString();
     }
 
-    // ---------- App State ----------
+    // ---------- State ----------
     const state = {
       rounds: loadRounds(),
-      view: "setup", // "setup" | "play" | "history"
+      view: "setup", // setup | play | history
       currentRound: null,
     };
 
@@ -175,20 +219,34 @@
       render();
     }
 
-    // ---------- Start Round / Setup ----------
-    function StartView() {
+    // ---------- Setup View ----------
+    function SetupView() {
       const container = document.createElement("div");
+      const grid = document.createElement("div");
+      grid.className = "grid";
 
-      const card = document.createElement("div");
-      card.className = "card";
+      // Left: Start Round
+      const leftCard = document.createElement("div");
+      leftCard.className = "card";
 
+      const header = document.createElement("div");
+      header.className = "card-header";
       const h2 = document.createElement("h2");
-      h2.textContent = "Start a Round";
-      card.appendChild(h2);
+      h2.textContent = "New Round";
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = "Setup";
+      header.appendChild(h2);
+      header.appendChild(badge);
+      leftCard.appendChild(header);
 
       const form = document.createElement("div");
 
       // Game mode
+      const modeRow = document.createElement("div");
+      modeRow.className = "row";
+
+      const modeCol = document.createElement("div");
       const modeLabel = document.createElement("label");
       modeLabel.textContent = "Game mode";
       const modeSelect = document.createElement("select");
@@ -198,8 +256,29 @@
         opt.textContent = m;
         modeSelect.appendChild(opt);
       });
+      modeCol.appendChild(modeLabel);
+      modeCol.appendChild(modeSelect);
+      modeRow.appendChild(modeCol);
 
-      // Scramble variant
+      const parCol = document.createElement("div");
+      const parLabel = document.createElement("label");
+      parLabel.textContent = "Course par";
+      const parInput = document.createElement("input");
+      parInput.type = "number";
+      parInput.min = "60";
+      parInput.max = "80";
+      parInput.value = "72";
+      parCol.appendChild(parLabel);
+      parCol.appendChild(parInput);
+      modeRow.appendChild(parCol);
+
+      form.appendChild(modeRow);
+
+      // Variant row
+      const variantRow = document.createElement("div");
+      variantRow.className = "row";
+
+      const scrambleCol = document.createElement("div");
       const scrambleLabel = document.createElement("label");
       scrambleLabel.textContent = "Scramble variant";
       const scrambleSelect = document.createElement("select");
@@ -209,8 +288,10 @@
         opt.textContent = v;
         scrambleSelect.appendChild(opt);
       });
+      scrambleCol.appendChild(scrambleLabel);
+      scrambleCol.appendChild(scrambleSelect);
 
-      // Wolf variant
+      const wolfCol = document.createElement("div");
       const wolfLabel = document.createElement("label");
       wolfLabel.textContent = "Wolf variant";
       const wolfSelect = document.createElement("select");
@@ -220,64 +301,57 @@
         opt.textContent = v;
         wolfSelect.appendChild(opt);
       });
+      wolfCol.appendChild(wolfLabel);
+      wolfCol.appendChild(wolfSelect);
 
-      // Players
+      variantRow.appendChild(scrambleCol);
+      variantRow.appendChild(wolfCol);
+      form.appendChild(variantRow);
+
+      // Players & notes
+      const playersRow = document.createElement("div");
+      playersRow.className = "row";
+
+      const playersCol = document.createElement("div");
       const playersLabel = document.createElement("label");
       playersLabel.textContent = "Players (comma separated)";
       const playersInput = document.createElement("input");
       playersInput.type = "text";
       playersInput.placeholder = "e.g. Jesse, Pat, Sam, Riley";
+      playersCol.appendChild(playersLabel);
+      playersCol.appendChild(playersInput);
 
-      // Course par
-      const parLabel = document.createElement("label");
-      parLabel.textContent = "Course par (18 holes)";
-      const parInput = document.createElement("input");
-      parInput.type = "number";
-      parInput.min = "60";
-      parInput.max = "80";
-      parInput.value = "72";
-
-      // Notes
+      const notesCol = document.createElement("div");
       const notesLabel = document.createElement("label");
-      notesLabel.textContent = "Notes (optional)";
+      notesLabel.textContent = "Course / notes";
       const notesInput = document.createElement("input");
       notesInput.type = "text";
       notesInput.placeholder = "Course name, tees, conditions...";
+      notesCol.appendChild(notesLabel);
+      notesCol.appendChild(notesInput);
 
-      form.appendChild(modeLabel);
-      form.appendChild(modeSelect);
-      form.appendChild(scrambleLabel);
-      form.appendChild(scrambleSelect);
-      form.appendChild(wolfLabel);
-      form.appendChild(wolfSelect);
-      form.appendChild(playersLabel);
-      form.appendChild(playersInput);
-      form.appendChild(parLabel);
-      form.appendChild(parInput);
-      form.appendChild(notesLabel);
-      form.appendChild(notesInput);
+      playersRow.appendChild(playersCol);
+      playersRow.appendChild(notesCol);
+      form.appendChild(playersRow);
 
-      card.appendChild(form);
+      leftCard.appendChild(form);
 
       const actions = document.createElement("div");
       actions.className = "flex-between";
-      const left = document.createElement("div");
-      const right = document.createElement("div");
 
+      const leftActions = document.createElement("div");
       const startBtn = document.createElement("button");
       startBtn.textContent = "Start Round";
       startBtn.onclick = () => {
         const mode = modeSelect.value;
         const scrambleVariant = scrambleSelect.value;
         const wolfVariant = wolfSelect.value;
-        const playersRaw = playersInput.value.trim();
         const par = parseInt(parInput.value, 10) || 72;
-
+        const playersRaw = playersInput.value.trim();
         const players = playersRaw
           ? playersRaw.split(",").map(p => p.trim()).filter(Boolean)
           : ["Player 1"];
 
-        // Basic validation for Wolf (needs 4 players)
         if (mode === "Wolf" && players.length !== 4) {
           alert("Wolf requires exactly 4 players.");
           return;
@@ -290,7 +364,7 @@
           scrambleVariant: mode === "Scramble" ? scrambleVariant : null,
           wolfVariant: mode === "Wolf" ? wolfVariant : null,
           players,
-          scores: {}, // { playerName: [per-hole scores] }
+          scores: {},
           coursePar: par,
           notes: notesInput.value.trim() || "",
           totalScore: null,
@@ -302,25 +376,33 @@
 
         setState({ currentRound: round, view: "play" });
       };
+      leftActions.appendChild(startBtn);
 
+      const rightActions = document.createElement("div");
       const historyBtn = document.createElement("button");
       historyBtn.className = "secondary";
       historyBtn.textContent = "View History";
       historyBtn.onclick = () => setState({ view: "history" });
+      rightActions.appendChild(historyBtn);
 
-      left.appendChild(startBtn);
-      right.appendChild(historyBtn);
-      actions.appendChild(left);
-      actions.appendChild(right);
+      actions.appendChild(leftActions);
+      actions.appendChild(rightActions);
+      leftCard.appendChild(actions);
 
-      card.appendChild(actions);
+      // Right: Handicap & recent
+      const rightCard = document.createElement("div");
+      rightCard.className = "card";
 
-      // Handicap summary
-      const hCard = document.createElement("div");
-      hCard.className = "card";
-      const hTitle = document.createElement("h3");
-      hTitle.textContent = "Handicap & Recent Rounds";
-      hCard.appendChild(hTitle);
+      const rHeader = document.createElement("div");
+      rHeader.className = "card-header";
+      const rTitle = document.createElement("h2");
+      rTitle.textContent = "Handicap & Recent Rounds";
+      const rBadge = document.createElement("span");
+      rBadge.className = "badge";
+      rBadge.textContent = "Overview";
+      rHeader.appendChild(rTitle);
+      rHeader.appendChild(rBadge);
+      rightCard.appendChild(rHeader);
 
       const handicap = calculateHandicapFromRounds(state.rounds);
       const p = document.createElement("p");
@@ -329,7 +411,7 @@
       } else {
         p.innerHTML = `Current handicap (last 5 rounds): <span class="pill">${handicap >= 0 ? "+" + handicap : handicap}</span>`;
       }
-      hCard.appendChild(p);
+      rightCard.appendChild(p);
 
       const recent = [...state.rounds].sort((a, b) => b.date - a.date).slice(0, 5);
       if (recent.length) {
@@ -351,21 +433,22 @@
           }
           list.appendChild(row);
         });
-        hCard.appendChild(list);
+        rightCard.appendChild(list);
       } else {
         const none = document.createElement("p");
         none.className = "small";
         none.textContent = "No rounds logged yet.";
-        hCard.appendChild(none);
+        rightCard.appendChild(none);
       }
 
-      container.appendChild(card);
-      container.appendChild(hCard);
+      grid.appendChild(leftCard);
+      grid.appendChild(rightCard);
+      container.appendChild(grid);
 
       return container;
     }
 
-    // ---------- Play View (simple per-hole entry) ----------
+    // ---------- Play View ----------
     function PlayView() {
       const round = state.currentRound;
       if (!round) {
@@ -375,7 +458,6 @@
       }
 
       const container = document.createElement("div");
-
       const card = document.createElement("div");
       card.className = "card";
 
@@ -392,6 +474,7 @@
       meta.textContent = `${round.mode}`;
       if (round.scrambleVariant) meta.textContent += ` • ${round.scrambleVariant}`;
       if (round.wolfVariant) meta.textContent += ` • ${round.wolfVariant}`;
+      if (round.notes) meta.textContent += ` • ${round.notes}`;
       left.appendChild(meta);
 
       const right = document.createElement("div");
@@ -425,7 +508,6 @@
       table.appendChild(thead);
 
       const tbody = document.createElement("tbody");
-
       for (let i = 0; i < 18; i++) {
         const tr = document.createElement("tr");
         const tdHole = document.createElement("td");
@@ -458,13 +540,11 @@
 
       const footer = document.createElement("div");
       footer.className = "flex-between";
-      const leftF = document.createElement("div");
-      const rightF = document.createElement("div");
 
+      const leftF = document.createElement("div");
       const finishBtn = document.createElement("button");
       finishBtn.textContent = "Finish Round";
       finishBtn.onclick = () => {
-        // For now, totalScore = sum of first player's scores (or team score in Scramble/Wolf)
         const primary = round.players[0];
         const arr = round.scores[primary] || [];
         const valid = arr.filter(v => typeof v === "number");
@@ -478,7 +558,9 @@
         saveRounds(updated);
         setState({ rounds: updated, currentRound: null, view: "history" });
       };
+      leftF.appendChild(finishBtn);
 
+      const rightF = document.createElement("div");
       const cancelBtn = document.createElement("button");
       cancelBtn.className = "secondary";
       cancelBtn.textContent = "Cancel Round";
@@ -487,12 +569,10 @@
           setState({ currentRound: null, view: "setup" });
         }
       };
-
-      leftF.appendChild(finishBtn);
       rightF.appendChild(cancelBtn);
+
       footer.appendChild(leftF);
       footer.appendChild(rightF);
-
       card.appendChild(footer);
 
       container.appendChild(card);
@@ -502,7 +582,6 @@
     // ---------- History View ----------
     function HistoryView() {
       const container = document.createElement("div");
-
       const card = document.createElement("div");
       card.className = "card";
 
@@ -553,7 +632,6 @@
         const diff = typeof r.totalScore === "number" && typeof r.coursePar === "number"
           ? r.totalScore - r.coursePar
           : null;
-
         const variant = r.scrambleVariant || r.wolfVariant || "";
 
         const cols = [
@@ -588,19 +666,19 @@
       const root = document.getElementById("root");
       root.innerHTML = "";
 
-      let viewNode;
+      let node;
       if (state.view === "setup") {
-        viewNode = StartView();
+        node = SetupView();
       } else if (state.view === "play") {
-        viewNode = PlayView();
+        node = PlayView();
       } else if (state.view === "history") {
-        viewNode = HistoryView();
+        node = HistoryView();
       } else {
-        viewNode = document.createElement("div");
-        viewNode.textContent = "Unknown view.";
+        node = document.createElement("div");
+        node.textContent = "Unknown view.";
       }
 
-      root.appendChild(viewNode);
+      root.appendChild(node);
     }
 
     render();
