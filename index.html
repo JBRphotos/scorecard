@@ -8,206 +8,146 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #F8F9F8; color: #041E0F; height: 100vh; overflow: hidden; }
-    #root { height: 100%; display: flex; flex-direction: column; max-width: 450px; margin: 0 auto; background: #FFFFFF; position: relative; }
-    button { cursor: pointer; border: none; transition: transform 0.1s, opacity 0.1s; -webkit-tap-highlight-color: transparent; }
+    body { background-color: #FFFFFF; color: #041E0F; height: 100vh; overflow: hidden; }
+    #root { height: 100%; display: flex; flex-direction: column; max-width: 450px; margin: 0 auto; background: #FFFFFF; border-left: 1px solid #E0E5E2; border-right: 1px solid #E0E5E2; }
+    button { cursor: pointer; border: none; transition: all 0.1s; -webkit-tap-highlight-color: transparent; border-radius: 12px; }
     button:active { transform: scale(0.98); opacity: 0.8; }
-    input { outline: none; border: none; }
-    .card-shadow { box-shadow: 0 4px 12px rgba(0, 103, 71, 0.05); }
+    input { outline: none; border: none; font-size: 16px; }
+    .card { background: #F8F9F8; border: 1px solid #E0E5E2; border-radius: 16px; padding: 16px; margin-bottom: 12px; }
   </style>
 </head>
 <body>
 <div id="root"></div>
-
 <script>
 const { useState, useEffect } = React;
 const ce = React.createElement;
 
-// MASTERS COLOR PALETTE (Clean White Theme)
 const COLORS = {
   green: "#006747",  // Augusta Green
   yellow: "#FBE122", // Masters Yellow
-  pimento: "#FF6B35",// Red/Orange
-  bg: "#FFFFFF",     // Clean White
-  surface: "#F8F9F8",// Light Gray/Green tint
-  text: "#041E0F",   // Deep Forest Text
-  muted: "#667A6F",  // Muted Green-Gray
-  border: "#E0E5E2"  // Subtle Border
+  pimento: "#FF6B35",// Orange-Red
+  text: "#041E0F",   // Deep Forest
+  muted: "#667A6F",  // Gray-Green
+  border: "#E0E5E2", 
+  white: "#FFFFFF"
 };
 
-// STORAGE HELPERS
-const save = (key, val) => localStorage.setItem(key, JSON.stringify(val));
-const load = (key, fallback) => {
-  try { return JSON.parse(localStorage.getItem(key)) || fallback; }
-  catch { return fallback; }
-};
+// Built-in Database Fixes
+const BUILT_IN_DB = [
+  { id: 'skyway', name: "Skyway Golf Course", location: "Jersey City, NJ", holes: 9, pars: [4,4,3,4,5,4,3,4,4] },
+  { id: 'hackensack', name: "Hackensack Golf Club", location: "Emerson, NJ", holes: 18, pars: Array(18).fill(4) }
+];
+
+const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+const load = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) || f; } catch(e) { return f; } };
 
 function App() {
-  const [view, setView] = useState("home"); // home, search, playing, summary
-  const [courses, setCourses] = useState(() => load("golf_courses_v5", []));
+  const [view, setView] = useState("setup");
+  const [courses, setCourses] = useState(() => load("golf_courses_v5", BUILT_IN_DB));
   const [history, setHistory] = useState(() => load("golf_history_v5", []));
   
-  // FIX: Explicitly defining homeCourse to prevent ReferenceError
-  const [homeCourse, setHomeCourse] = useState(() => load("home_course_v5", null));
+  // FIXED: Variable initialization to prevent ReferenceError
+  const [homeCourse, setHomeCourse] = useState(() => load("golf_home_course", null));
   
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
-  // Active Round State
+  // Active Round
   const [activeCourse, setActiveCourse] = useState(null);
   const [currentHole, setCurrentHole] = useState(0);
   const [scores, setScores] = useState([]);
 
-  // GOLF COURSE SEARCH (OpenStreetMap)
-  const searchGolfCourses = async () => {
-    if (!searchQuery.trim()) return;
-    setLoading(true);
+  async function handleSearch() {
+    if (!searchQuery) return;
+    setIsSearching(true);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}+golf+course&format=json&limit=5`);
-      const data = await res.json();
+      const resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}+golf+course&format=json&limit=5`);
+      const data = await resp.json();
       setSearchResults(data);
-    } catch (e) {
-      alert("Search failed. Check connection.");
-    }
-    setLoading(false);
-  };
+    } catch (e) { console.error(e); }
+    setIsSearching(false);
+  }
 
-  const startRound = (course) => {
+  function startRound(course) {
     setActiveCourse(course);
-    setScores(Array(course.holes).fill(0).map((_, i) => ({
-      score: course.pars ? course.pars[i] : 4,
-      putts: 2,
-      gir: false
-    })));
+    setScores(course.pars.map(p => ({ score: p, putts: 2 })));
     setCurrentHole(0);
     setView("playing");
-  };
+  }
 
-  const handleSelectFound = (item) => {
-    const name = item.display_name.split(',')[0];
-    const newCourse = { id: Date.now(), name, holes: 18, pars: Array(18).fill(4) };
-    const updatedCourses = [newCourse, ...courses];
-    setCourses(updatedCourses);
-    save("golf_courses_v5", updatedCourses);
-    startRound(newCourse);
-  };
-
-  // UI COMPONENTS
-  const Header = (title, sub) => ce("div", { style: { padding: "30px 24px 20px", background: COLORS.green, color: "#FFF" } },
-    ce("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: 1.5, opacity: 0.8, textTransform: "uppercase" } }, sub),
-    ce("div", { style: { fontSize: 28, fontWeight: 800 } }, title)
+  const Header = (title, sub) => ce("div", { style: { padding: "30px 24px", background: COLORS.green, color: COLORS.white } },
+    ce("div", { style: { fontSize: 10, fontWeight: 700, letterSpacing: 1.5, opacity: 0.8, marginBottom: 4 } }, sub.toUpperCase()),
+    ce("div", { style: { fontSize: 28, fontWeight: 900 } }, title)
   );
 
-  // VIEW: HOME
-  if (view === "home") {
+  if (view === "setup") {
     return ce("div", { style: { flex: 1, display: "flex", flexDirection: "column" } },
-      Header("Leaderboard", "The Tradition Continues"),
+      Header("The Masters", "Golf Tracker"),
       ce("div", { style: { padding: "24px", flex: 1, overflowY: "auto" } },
-        // Fixed homeCourse access with safety check
-        homeCourse ? ce("div", { style: { background: COLORS.surface, padding: "20px", borderRadius: 16, marginBottom: 20, border: `1px solid ${COLORS.border}` } },
-          ce("div", { style: { color: COLORS.muted, fontSize: 12, fontWeight: 600 } }, "MY HOME COURSE"),
-          ce("div", { style: { fontSize: 18, fontWeight: 700, marginTop: 4 } }, homeCourse.name),
-          ce("button", { 
-            onClick: () => startRound(homeCourse),
-            style: { marginTop: 12, background: COLORS.green, color: "#FFF", padding: "10px 16px", borderRadius: 8, fontWeight: 700 } 
-          }, "Quick Start")
-        ) : null,
-
-        ce("div", { style: { marginBottom: 12, fontWeight: 700, color: COLORS.muted, fontSize: 12, letterSpacing: 0.5 } }, "RECENT ROUNDS"),
-        history.length === 0 ? ce("div", { style: { padding: "40px 0", textAlign: "center", color: COLORS.muted } }, "No rounds recorded yet.") : 
-        history.slice(0, 3).map((r, i) => ce("div", { key: i, style: { padding: "16px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between" } },
-          ce("div", null, ce("div", { style: { fontWeight: 700 } }, r.courseName), ce("div", { style: { fontSize: 12, color: COLORS.muted } }, r.date)),
-          ce("div", { style: { fontSize: 20, fontWeight: 800, color: r.diff <= 0 ? COLORS.green : COLORS.pimento } }, (r.diff > 0 ? "+" : "") + r.diff)
-        ))
-      ),
-      ce("div", { style: { padding: "20px", background: "#FFF", borderTop: `1px solid ${COLORS.border}` } },
-        ce("button", { 
-          onClick: () => setView("search"),
-          style: { width: "100%", background: COLORS.green, color: "#FFF", padding: "18px", borderRadius: 12, fontSize: 16, fontWeight: 700 }
-        }, "Find a Course")
-      )
-    );
-  }
-
-  // VIEW: SEARCH
-  if (view === "search") {
-    return ce("div", { style: { flex: 1, display: "flex", flexDirection: "column" } },
-      Header("Course Search", "Locate Your Next Round"),
-      ce("div", { style: { padding: "20px" } },
-        ce("div", { style: { display: "flex", background: COLORS.surface, borderRadius: 12, padding: "4px", border: `1px solid ${COLORS.border}` } },
+        ce("div", { style: { display: "flex", gap: 8, marginBottom: 24 } },
           ce("input", { 
-            placeholder: "Search (e.g. Pebble Beach)", 
-            value: searchQuery, 
-            onChange: (e) => setSearchQuery(e.target.value),
-            style: { flex: 1, padding: "14px", background: "transparent", fontSize: 16 } 
+            placeholder: "Find a course...", value: searchQuery, 
+            onChange: e => setSearchQuery(e.target.value),
+            style: { flex: 1, padding: "16px", borderRadius: 12, background: "#F0F2F0", color: COLORS.text }
           }),
-          ce("button", { 
-            onClick: searchGolfCourses,
-            style: { background: COLORS.green, color: "#FFF", padding: "0 20px", borderRadius: 10, fontWeight: 700 } 
-          }, "Go")
+          ce("button", { onClick: handleSearch, style: { background: COLORS.green, color: "#FFF", padding: "0 20px", fontWeight: 700 } }, "GO")
         ),
-        ce("div", { style: { marginTop: 20 } },
-          loading ? ce("div", { style: { textAlign: "center", color: COLORS.muted } }, "Searching databases...") :
-          searchResults.map((r, i) => ce("button", {
-            key: i,
-            onClick: () => handleSelectFound(r),
-            style: { width: "100%", textAlign: "left", padding: "16px", background: "#FFF", borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center" }
-          }, ce("div", { style: { fontSize: 14, fontWeight: 600 } }, r.display_name.split(',').slice(0, 2).join(','))))
-        ),
-        ce("button", { onClick: () => setView("home"), style: { marginTop: 20, width: "100%", color: COLORS.muted, fontWeight: 600 } }, "Cancel")
+        
+        isSearching && ce("div", { style: { textAlign: "center", color: COLORS.muted, marginBottom: 12 } }, "Searching..."),
+
+        searchResults.map(r => ce("button", { 
+          key: r.place_id, 
+          onClick: () => {
+            const nc = { id: Date.now(), name: r.display_name.split(',')[0], holes: 18, pars: Array(18).fill(4) };
+            startRound(nc);
+          },
+          style: { width: "100%", textAlign: "left", padding: "16px", background: "#F8F9F8", border: "1px solid " + COLORS.border, marginBottom: 8 }
+        }, r.display_name.split(',').slice(0,2).join(','))),
+
+        ce("div", { style: { marginTop: 12, fontWeight: 800, fontSize: 12, color: COLORS.muted, marginBottom: 12 } }, "SAVED COURSES"),
+        courses.map(c => ce("button", { 
+          key: c.id, 
+          onClick: () => startRound(c),
+          style: { width: "100%", textAlign: "left", padding: "18px", background: COLORS.white, border: "1px solid " + COLORS.border, marginBottom: 10, display: "flex", justifyContent: "space-between" }
+        }, ce("span", { style: { fontWeight: 600 } }, c.name), ce("span", { style: { color: COLORS.green, fontWeight: 700 } }, c.holes + "H")))
       )
     );
   }
 
-  // VIEW: PLAYING
   if (view === "playing") {
     const hole = scores[currentHole];
     const par = activeCourse.pars[currentHole];
     return ce("div", { style: { flex: 1, display: "flex", flexDirection: "column" } },
-      ce("div", { style: { padding: "20px", background: COLORS.green, color: "#FFF", display: "flex", justifyContent: "space-between", alignItems: "center" } },
-        ce("div", null, ce("div", { style: { fontSize: 10, fontWeight: 700, opacity: 0.8 } }, activeCourse.name.toUpperCase()), ce("div", { style: { fontSize: 20, fontWeight: 800 } }, `Hole ${currentHole + 1}`)),
-        ce("button", { onClick: () => setView("home"), style: { color: COLORS.yellow, fontWeight: 700, fontSize: 12, background: "rgba(255,255,255,0.1)", padding: "6px 12px", borderRadius: 6 } }, "QUIT")
+      ce("div", { style: { padding: "20px", background: COLORS.green, color: "#FFF", display: "flex", justifyContent: "space-between" } },
+        ce("div", null, ce("div", { style: { fontSize: 10, fontWeight: 700, opacity: 0.8 } }, activeCourse.name.toUpperCase()), ce("div", { style: { fontSize: 22, fontWeight: 800 } }, "Hole " + (currentHole + 1))),
+        ce("button", { onClick: () => setView("setup"), style: { color: COLORS.yellow, fontWeight: 700 } }, "EXIT")
       ),
       ce("div", { style: { flex: 1, padding: "40px 24px", textAlign: "center" } },
-        ce("div", { style: { color: COLORS.muted, fontWeight: 700, marginBottom: 4 } }, `PAR ${par}`),
-        ce("div", { style: { fontSize: 100, fontWeight: 900, color: COLORS.text, marginBottom: 20 } }, hole.score),
+        ce("div", { style: { color: COLORS.muted, fontWeight: 700 } }, "PAR " + par),
+        ce("div", { style: { fontSize: 120, fontWeight: 900, color: COLORS.text, margin: "10px 0" } }, hole.score),
         ce("div", { style: { display: "flex", justifyContent: "center", gap: 30, marginBottom: 40 } },
-          ce("button", { 
-            onClick: () => { const n = [...scores]; n[currentHole].score = Math.max(1, n[currentHole].score - 1); setScores(n); },
-            style: { width: 64, height: 64, borderRadius: 32, background: COLORS.surface, fontSize: 32, color: COLORS.green, border: `2px solid ${COLORS.border}` } 
-          }, "−"),
-          ce("button", { 
-            onClick: () => { const n = [...scores]; n[currentHole].score++; setScores(n); },
-            style: { width: 64, height: 64, borderRadius: 32, background: COLORS.green, fontSize: 32, color: "#FFF" } 
-          }, "+")
+          ce("button", { onClick: () => { const n = [...scores]; n[currentHole].score--; setScores(n); }, style: { width: 70, height: 70, borderRadius: 35, background: "#F0F2F0", fontSize: 32, color: COLORS.green } }, "−"),
+          ce("button", { onClick: () => { const n = [...scores]; n[currentHole].score++; setScores(n); }, style: { width: 70, height: 70, borderRadius: 35, background: COLORS.green, fontSize: 32, color: "#FFF" } }, "+")
         ),
-        ce("div", { style: { display: "flex", background: COLORS.surface, borderRadius: 16, padding: "20px", justifyContent: "space-between", alignItems: "center" } },
+        ce("div", { className: "card", style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
           ce("div", { style: { fontWeight: 700, color: COLORS.muted } }, "PUTTS"),
-          ce("div", { style: { display: "flex", gap: 16, alignItems: "center" } },
-            ce("button", { onClick: () => { const n = [...scores]; n[currentHole].putts = Math.max(0, n[currentHole].putts - 1); setScores(n); }, style: { color: COLORS.green, fontWeight: 800, fontSize: 20 } }, "−"),
+          ce("div", { style: { display: "flex", gap: 20, alignItems: "center" } },
+            ce("button", { onClick: () => { const n = [...scores]; n[currentHole].putts--; setScores(n); }, style: { fontSize: 24, color: COLORS.green, fontWeight: 800 } }, "−"),
             ce("div", { style: { fontSize: 24, fontWeight: 800 } }, hole.putts),
-            ce("button", { onClick: () => { const n = [...scores]; n[currentHole].putts++; setScores(n); }, style: { color: COLORS.green, fontWeight: 800, fontSize: 20 } }, "+")
+            ce("button", { onClick: () => { const n = [...scores]; n[currentHole].putts++; setScores(n); }, style: { fontSize: 24, color: COLORS.green, fontWeight: 800 } }, "+")
           )
         )
       ),
       ce("div", { style: { padding: "24px", display: "flex", gap: 12 } },
-        currentHole > 0 && ce("button", { onClick: () => setCurrentHole(currentHole - 1), style: { flex: 1, padding: "18px", borderRadius: 12, background: COLORS.surface, color: COLORS.muted, fontWeight: 700 } }, "Back"),
+        ce("button", { onClick: () => setCurrentHole(Math.max(0, currentHole - 1)), style: { flex: 1, padding: "18px", background: "#F0F2F0", color: COLORS.muted, fontWeight: 700 } }, "BACK"),
         ce("button", { 
           onClick: () => {
             if (currentHole < activeCourse.holes - 1) setCurrentHole(currentHole + 1);
-            else {
-              const total = scores.reduce((a, b) => a + b.score, 0);
-              const parTotal = activeCourse.pars.reduce((a, b) => a + b, 0);
-              const newRound = { courseName: activeCourse.name, diff: total - parTotal, date: new Date().toLocaleDateString() };
-              const updatedHistory = [newRound, ...history];
-              setHistory(updatedHistory);
-              save("golf_history_v5", updatedHistory);
-              setView("home");
-            }
+            else setView("setup");
           },
-          style: { flex: 2, padding: "18px", borderRadius: 12, background: COLORS.green, color: "#FFF", fontWeight: 700, fontSize: 16 }
-        }, currentHole < activeCourse.holes - 1 ? "Next Hole" : "Finish Round")
+          style: { flex: 2, padding: "18px", background: COLORS.green, color: "#FFF", fontWeight: 800 }
+        }, currentHole < activeCourse.holes - 1 ? "NEXT HOLE" : "FINISH")
       )
     );
   }
@@ -220,4 +160,3 @@ root.render(ce(App));
 </script>
 </body>
 </html>
-
