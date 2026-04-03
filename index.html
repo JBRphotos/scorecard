@@ -2,21 +2,44 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#006747">
   <title>Golf Tracker</title>
+  <link rel="manifest" href='data:application/manifest+json,{"name":"Golf Tracker","short_name":"Golf","start_url":".","display":"standalone","background_color":"#FFFFFF","theme_color":"#006747"}'>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     body { background-color: #FFFFFF; color: #041E0F; height: 100vh; overflow: hidden; }
-    #root { height: 100%; display: flex; flex-direction: column; max-width: 450px; margin: 0 auto; background: #FFFFFF; border-left: 1px solid #E0E5E2; border-right: 1px solid #E0E5E2; }
+    #root { height: 100%; display: flex; flex-direction: column; max-width: 450px; margin: 0 auto; background: #FFFFFF; }
+    
+    /* Header padding adjusted for PWA safe area (Notch) */
+    .pwa-header { 
+      padding-top: calc(env(safe-area-inset-top) + 20px) !important;
+      padding-left: 24px;
+      padding-right: 24px;
+      padding-bottom: 20px;
+      background: #006747;
+      color: #FFFFFF;
+    }
+
     button { cursor: pointer; border: none; transition: all 0.1s; -webkit-tap-highlight-color: transparent; border-radius: 12px; }
     button:active { transform: scale(0.98); opacity: 0.8; }
     input { outline: none; border: none; font-size: 16px; }
     .card { background: #F8F9F8; border: 1px solid #E0E5E2; border-radius: 16px; padding: 16px; margin-bottom: 12px; }
     .scroll-hide::-webkit-scrollbar { display: none; }
+    
+    /* Footer padding adjusted for Home Indicator */
+    .pwa-footer {
+      padding-bottom: calc(env(safe-area-inset-bottom) + 20px) !important;
+      padding-left: 24px;
+      padding-right: 24px;
+      padding-top: 20px;
+      background: #FFFFFF;
+      border-top: 1px solid #E0E5E2;
+    }
   </style>
 </head>
 <body>
@@ -29,17 +52,15 @@
       const COLORS = {
         green: "#006747",
         yellow: "#FBE122",
-        orange: "#FF6B35",
         text: "#041E0F",
         muted: "#667A6F",
         border: "#E0E5E2",
-        white: "#FFFFFF",
-        cardBg: "#F8F9F8"
+        white: "#FFFFFF"
       };
 
       const BUILT_IN_DB = [
         { id: 'skyway', name: "Skyway Golf Course", location: "Jersey City, NJ", holes: 9, pars: [4,4,3,4,5,4,3,4,4] },
-        { id: 'hackensack', name: "Hackensack Golf Club", location: "Emerson, NJ", holes: 18, pars: [4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4] }
+        { id: 'hackensack', name: "Hackensack Golf Club", location: "Emerson, NJ", holes: 18, pars: Array(18).fill(4) }
       ];
 
       const load = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) || f; } catch(e) { return f; } };
@@ -48,40 +69,35 @@
       function App() {
         const [view, setView] = useState("setup");
         const [courses] = useState(() => load("golf_courses_v5", BUILT_IN_DB));
-        const [history, setHistory] = useState(() => load("golf_history_v5", []));
-        const [homeCourse, setHomeCourse] = useState(() => load("golf_home_course", null));
-        
         const [activeCourse, setActiveCourse] = useState(null);
         const [currentHole, setCurrentHole] = useState(0);
         const [scores, setScores] = useState([]);
 
         const startRound = (course) => {
           setActiveCourse(course);
-          setScores(course.pars.map(p => ({ score: p, putts: 2, gir: false })));
+          setScores(course.pars.map(p => ({ score: p, putts: 2 })));
           setCurrentHole(0);
           setView("playing");
         };
 
-        const Header = (title, sub) => ce("div", { style: { padding: "40px 24px 30px", background: COLORS.green, color: COLORS.white } },
-          ce("div", { style: { fontSize: 10, fontWeight: 700, letterSpacing: 1.5, opacity: 0.8, marginBottom: 4 } }, sub.toUpperCase()),
-          ce("div", { style: { fontSize: 28, fontWeight: 900 } }, title)
-        );
-
         if (view === "setup") {
           return ce("div", { style: { flex: 1, display: "flex", flexDirection: "column" } },
-            Header("The Masters", "Golf Tracker"),
+            ce("div", { className: "pwa-header" },
+              ce("div", { style: { fontSize: 10, fontWeight: 700, letterSpacing: 1.5, opacity: 0.8, marginBottom: 4 } }, "GOLF TRACKER"),
+              ce("div", { style: { fontSize: 28, fontWeight: 900 } }, "The Masters")
+            ),
             ce("div", { style: { padding: "24px", flex: 1, overflowY: "auto" }, className: "scroll-hide" },
-              ce("div", { style: { fontWeight: 800, fontSize: 12, color: COLORS.muted, marginBottom: 16, letterSpacing: 0.5 } }, "SAVED COURSES"),
+              ce("div", { style: { fontWeight: 800, fontSize: 12, color: COLORS.muted, marginBottom: 16 } }, "SAVED COURSES"),
               courses.map(c => ce("button", { 
                 key: c.id, 
                 onClick: () => startRound(c),
-                style: { width: "100%", textAlign: "left", padding: "20px", background: COLORS.white, border: "1px solid " + COLORS.border, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }
+                style: { width: "100%", textAlign: "left", padding: "20px", background: COLORS.white, border: "1px solid " + COLORS.border, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }
               }, 
                 ce("div", null, 
-                  ce("div", { style: { fontWeight: 700, fontSize: 16, marginBottom: 2 } }, c.name),
+                  ce("div", { style: { fontWeight: 700, fontSize: 16 } }, c.name),
                   ce("div", { style: { fontSize: 12, color: COLORS.muted } }, c.location)
                 ),
-                ce("div", { style: { color: COLORS.green, fontWeight: 800, fontSize: 14 } }, c.holes + "H")
+                ce("div", { style: { color: COLORS.green, fontWeight: 800 } }, c.holes + "H")
               ))
             )
           );
@@ -92,30 +108,30 @@
           const par = activeCourse.pars[currentHole];
           
           return ce("div", { style: { flex: 1, display: "flex", flexDirection: "column" } },
-            ce("div", { style: { padding: "24px 20px 20px", background: COLORS.green, color: COLORS.white, display: "flex", justifyContent: "space-between", alignItems: "center" } },
+            ce("div", { className: "pwa-header", style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
               ce("div", null, 
-                ce("div", { style: { fontSize: 10, fontWeight: 700, opacity: 0.8, letterSpacing: 1 } }, activeCourse.name.toUpperCase()), 
-                ce("div", { style: { fontSize: 24, fontWeight: 800 } }, "Hole " + (currentHole + 1))
+                ce("div", { style: { fontSize: 10, fontWeight: 700, opacity: 0.8 } }, activeCourse.name.toUpperCase()), 
+                ce("div", { style: { fontSize: 22, fontWeight: 800 } }, "Hole " + (currentHole + 1))
               ),
-              ce("button", { onClick: () => setView("setup"), style: { background: "rgba(255,255,255,0.1)", color: COLORS.white, padding: "8px 16px", fontWeight: 700, fontSize: 12 } }, "QUIT")
+              ce("button", { onClick: () => setView("setup"), style: { background: "rgba(255,255,255,0.1)", color: COLORS.white, padding: "8px 16px", fontWeight: 700, fontSize: 12 } }, "EXIT")
             ),
-            ce("div", { style: { flex: 1, padding: "30px 24px", textAlign: "center", overflowY: "auto" } },
-              ce("div", { style: { color: COLORS.muted, fontWeight: 800, fontSize: 14, letterSpacing: 1, marginBottom: 8 } }, "PAR " + par),
-              ce("div", { style: { fontSize: 120, fontWeight: 900, color: COLORS.text, lineHeight: 1, margin: "10px 0" } }, hole.score),
-              ce("div", { style: { display: "flex", justifyContent: "center", gap: 30, marginBottom: 40 } },
-                ce("button", { onClick: () => { const n = [...scores]; n[currentHole].score = Math.max(1, n[currentHole].score - 1); setScores(n); }, style: { width: 70, height: 70, borderRadius: 35, background: "#F0F2F0", fontSize: 32, color: COLORS.green, fontWeight: 600 } }, "−"),
-                ce("button", { onClick: () => { const n = [...scores]; n[currentHole].score++; setScores(n); }, style: { width: 70, height: 70, borderRadius: 35, background: COLORS.green, fontSize: 32, color: COLORS.white, fontWeight: 600 } }, "+")
+            ce("div", { style: { flex: 1, padding: "30px 24px", textAlign: "center" } },
+              ce("div", { style: { color: COLORS.muted, fontWeight: 800, fontSize: 14, marginBottom: 8 } }, "PAR " + par),
+              ce("div", { style: { fontSize: 120, fontWeight: 900, color: COLORS.text, lineHeight: 1 } }, hole.score),
+              ce("div", { style: { display: "flex", justifyContent: "center", gap: 30, marginBottom: 40, marginTop: 20 } },
+                ce("button", { onClick: () => { const n = [...scores]; n[currentHole].score = Math.max(1, n[currentHole].score - 1); setScores(n); }, style: { width: 70, height: 70, borderRadius: 35, background: "#F0F2F0", fontSize: 32, color: COLORS.green } }, "−"),
+                ce("button", { onClick: () => { const n = [...scores]; n[currentHole].score++; setScores(n); }, style: { width: 70, height: 70, borderRadius: 35, background: COLORS.green, fontSize: 32, color: COLORS.white } }, "+")
               ),
-              ce("div", { className: "card", style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px" } },
-                ce("div", { style: { fontWeight: 800, color: COLORS.muted, fontSize: 13, letterSpacing: 0.5 } }, "PUTTS"),
+              ce("div", { className: "card", style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
+                ce("div", { style: { fontWeight: 800, color: COLORS.muted, fontSize: 12 } }, "PUTTS"),
                 ce("div", { style: { display: "flex", gap: 24, alignItems: "center" } },
                   ce("button", { onClick: () => { const n = [...scores]; n[currentHole].putts = Math.max(0, n[currentHole].putts - 1); setScores(n); }, style: { fontSize: 28, color: COLORS.green, fontWeight: 800, background: "none" } }, "−"),
-                  ce("div", { style: { fontSize: 24, fontWeight: 800, minWidth: 20 } }, hole.putts),
+                  ce("div", { style: { fontSize: 24, fontWeight: 800 } }, hole.putts),
                   ce("button", { onClick: () => { const n = [...scores]; n[currentHole].putts++; setScores(n); }, style: { fontSize: 28, color: COLORS.green, fontWeight: 800, background: "none" } }, "+")
                 )
               )
             ),
-            ce("div", { style: { padding: "24px", display: "flex", gap: 12, background: COLORS.white, borderTop: "1px solid " + COLORS.border } },
+            ce("div", { className: "pwa-footer", style: { display: "flex", gap: 12 } },
               ce("button", { onClick: () => setCurrentHole(Math.max(0, currentHole - 1)), style: { flex: 1, padding: "20px", background: "#F0F2F0", color: COLORS.muted, fontWeight: 700 } }, "BACK"),
               ce("button", { 
                 onClick: () => {
@@ -123,14 +139,13 @@
                   else setView("setup");
                 },
                 style: { flex: 2, padding: "20px", background: COLORS.green, color: COLORS.white, fontWeight: 800 }
-              }, currentHole < activeCourse.holes - 1 ? "NEXT HOLE" : "FINISH ROUND")
+              }, currentHole < activeCourse.holes - 1 ? "NEXT HOLE" : "FINISH")
             )
           );
         }
         return null;
       }
 
-      // Final check for DOM readiness
       const init = () => {
         const rootElement = document.getElementById("root");
         if (rootElement) {
