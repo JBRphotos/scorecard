@@ -617,45 +617,520 @@ ce(“div”, { style: { fontSize: 10, color: MG, fontWeight: 700, flexShrink: 0
 }
 
 // –– HANDICAP CALCULATOR ––––––––––––––––––––––––––
-function HandicapCalc(props) {
-var onClose = props.onClose;
 
-var rs = useState(Array(5).fill({ score: “”, par: 72 }));
-var rounds = rs[0]; var setRounds = rs[1];
+// –– STABLEFORD TRACKER —————————————————–
+function StablefordTracker(props) {
+var course     = props.course;
+var onComplete = props.onComplete;
+var onExit     = props.onExit;
 
-function updateRound(i, key, val) {
-setRounds(function(prev) {
-var n = prev.map(function(r) { return Object.assign({}, r); });
-n[i][key] = val;
+var activePars = course.pars.slice(0, course.holes);
+var sc0 = useState(activePars.map(function(p) { return { score: p, putts: 2 }; }));
+var scores = sc0[0]; var setScores = sc0[1];
+var h0 = useState(0);
+var currentHole = h0[0]; var setCurrentHole = h0[1];
+
+function stablefordPts(score, par) {
+var d = score - par;
+if (d <= -2) return 4;
+if (d === -1) return 3;
+if (d === 0)  return 2;
+if (d === 1)  return 1;
+return 0;
+}
+
+var currentPar   = activePars[currentHole];
+var currentScore = scores[currentHole].score;
+var totalPts     = scores.reduce(function(a, s, i) { return a + stablefordPts(s.score, activePars[i]); }, 0);
+var curPts       = stablefordPts(currentScore, currentPar);
+var diff         = currentScore - currentPar;
+var ptColor      = diff <= -2 ? “#0B6E3F” : diff === -1 ? MG : diff === 0 ? “#4A8C6E” : diff === 1 ? PC : RED;
+var ptBg         = diff <= -2 ? “#D4EDDA” : diff === -1 ? “#E8F5EE” : diff === 0 ? “#F0FAF4” : diff === 1 ? “#FFF0EB” : “#FFEBEB”;
+var ptLabel      = curPts === 4 ? “Eagle” : curPts === 3 ? “Birdie” : curPts === 2 ? “Par” : curPts === 1 ? “Bogey” : “No pts”;
+
+function updateScore(delta) {
+setScores(function(prev) {
+var n = prev.map(function(h) { return Object.assign({}, h); });
+n[currentHole].score = Math.max(1, Math.min(10, n[currentHole].score + delta));
 return n;
 });
 }
 
-// Simplified handicap: average of differentials from up to 5 recent rounds
-// Differential = (Score - Course Rating) * 113 / Slope
-// We use par as a proxy for course rating, slope defaults 113
-var diffs = rounds
-.filter(function(r) { return r.score !== “” && !isNaN(parseInt(r.score, 10)); })
-.map(function(r) {
-var s = parseInt(r.score, 10);
-var p = parseInt(r.par, 10) || 72;
-return ((s - p) * 113) / 113; // simplified: diff = score - par
+function setQuick(val) {
+setScores(function(prev) {
+var n = prev.map(function(h) { return Object.assign({}, h); });
+if (val >= 1 && val <= 10) n[currentHole].score = val;
+return n;
+});
+}
+
+return ce(“div”, { style: { flex: 1, display: “flex”, flexDirection: “column”, background: C.bg } },
+ce(“div”, { style: { background: C.header, padding: “16px 24px 14px”, flexShrink: 0 } },
+ce(“div”, { style: { display: “flex”, justifyContent: “space-between”, alignItems: “flex-start”, marginBottom: 12 } },
+ce(“div”, null,
+ce(“div”, { style: { fontSize: 10, color: MYB, fontWeight: 700, textTransform: “uppercase”, letterSpacing: “0.1em” } }, course.name),
+ce(“div”, { style: { fontSize: 10, color: “rgba(255,255,255,0.6)”, marginTop: 2 } }, “Stableford”),
+ce(“div”, { style: { fontSize: 24, fontWeight: 900, color: “#fff”, marginTop: 4 } },
+“Hole “ + (currentHole + 1),
+ce(“span”, { style: { fontSize: 13, color: “rgba(255,255,255,0.5)”, fontWeight: 400, marginLeft: 8 } }, “of “ + course.holes)
+)
+),
+ce(“div”, { style: { textAlign: “right” } },
+ce(“div”, { style: { fontSize: 10, color: “rgba(255,255,255,0.6)” } }, “Total Points”),
+ce(“div”, { style: { fontSize: 32, fontWeight: 900, color: MYB } }, totalPts),
+ce(“button”, { onClick: onExit, style: { fontSize: 10, color: “rgba(255,255,255,0.4)”, background: “none”, border: “none”, cursor: “pointer”, display: “block”, marginTop: 4 } }, “Exit”)
+)
+),
+ce(“div”, { style: { overflowX: “auto”, display: “flex”, gap: 5 } },
+activePars.map(function(_, i) {
+var isActive = i === currentHole;
+var pts = stablefordPts(scores[i].score, activePars[i]);
+var ptc = pts === 4 ? “#0B6E3F” : pts === 3 ? MG : pts === 2 ? “#4A8C6E” : pts === 1 ? PC : RED;
+return ce(“div”, { key: i, onClick: function() { setCurrentHole(i); },
+style: { flexShrink: 0, width: 32, height: 42, borderRadius: 7, display: “flex”, flexDirection: “column”, alignItems: “center”, justifyContent: “center”, cursor: “pointer”, border: “2px solid “ + (isActive ? MYB : “transparent”), background: “rgba(255,255,255,0.08)”, gap: 1 }
+},
+ce(“div”, { style: { fontSize: 8, color: isActive ? MYB : “rgba(255,255,255,0.4)” } }, i + 1),
+ce(“div”, { style: { fontSize: 11, fontWeight: 800, color: isActive ? MYB : ptc } }, pts + “pt”)
+);
+})
+)
+),
+ce(“div”, { style: { flex: 1, overflowY: “auto”, padding: “20px 24px 12px” } },
+ce(“div”, { style: { textAlign: “center”, marginBottom: 20 } },
+ce(“div”, { style: { fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 4 } }, “PAR “ + currentPar),
+ce(“div”, { style: { fontSize: 96, fontWeight: 900, color: ptColor, lineHeight: 1, marginBottom: 8 } }, currentScore),
+ce(“div”, { style: { display: “flex”, alignItems: “center”, justifyContent: “center”, gap: 10, marginBottom: 18 } },
+ce(“div”, { style: { background: ptColor, color: “#fff”, borderRadius: 20, padding: “4px 14px”, fontSize: 13, fontWeight: 800 } }, ptLabel),
+ce(“div”, { style: { background: ptBg, color: ptColor, borderRadius: 20, padding: “4px 12px”, fontSize: 13, fontWeight: 800, border: “1px solid “ + ptColor + “33” } }, curPts + “ pt” + (curPts !== 1 ? “s” : “”))
+),
+ce(“div”, { style: { display: “flex”, alignItems: “center”, justifyContent: “center”, gap: 32 } },
+ce(“button”, { onClick: function() { updateScore(-1); }, style: { width: 72, height: 72, borderRadius: 22, fontSize: 36, fontWeight: 700, background: C.card, border: “2px solid “ + C.border, color: C.text } }, “-”),
+ce(“button”, { onClick: function() { updateScore(1); }, style: { width: 72, height: 72, borderRadius: 22, fontSize: 36, fontWeight: 700, background: MG, border: “none”, color: “#fff” } }, “+”)
+)
+),
+ce(“div”, { style: { display: “flex”, gap: 8 } },
+[[-1,“Birdie”],[0,“Par”],[1,“Bogey”],[2,“Dbl”]].map(function(pair) {
+var val = currentPar + pair[0];
+var active = currentScore === val;
+var tc = holeColor(val, currentPar);
+return ce(“button”, { key: pair[1], onClick: function() { setQuick(val); },
+style: { flex: 1, padding: “10px 2px”, borderRadius: 10, cursor: “pointer”, fontSize: 11, fontWeight: 700, border: “2px solid “ + (active ? tc : C.cardBorder), background: active ? tc + “22” : C.card, color: active ? tc : C.muted }
+}, pair[1]);
+})
+)
+),
+ce(“div”, { style: { padding: “12px 20px”, display: “flex”, gap: 10, background: C.card, borderTop: “1px solid “ + C.cardBorder, flexShrink: 0 } },
+currentHole > 0 ? ce(“button”, { onClick: function() { setCurrentHole(function(h) { return h - 1; }); }, style: { flex: 1, padding: “15px”, borderRadius: 12, background: C.bgAlt, border: “1px solid “ + C.cardBorder, color: C.muted, fontSize: 14, fontWeight: 700 } }, “< Back”) : null,
+currentHole < course.holes - 1
+? ce(“button”, { onClick: function() { setCurrentHole(function(h) { return h + 1; }); }, style: { flex: 2, padding: “15px”, borderRadius: 12, background: MG, border: “none”, color: “#fff”, fontWeight: 800, fontSize: 15 } }, “Next Hole >”)
+: ce(“button”, { onClick: function() { onComplete({ type: “stableford”, totalPts: totalPts, scores: scores, pars: activePars, courseName: course.name, holes: course.holes, date: new Date().toLocaleDateString() }); }, style: { flex: 2, padding: “15px”, borderRadius: 12, background: MY, border: “none”, color: “#000”, fontWeight: 800, fontSize: 15 } }, “Finish  “ + totalPts + “ pts”)
+)
+);
+}
+
+// –– SKINS TRACKER –––––––––––––––––––––––––––––
+function SkinsTracker(props) {
+var course     = props.course;
+var players    = props.players;
+var onComplete = props.onComplete;
+var onExit     = props.onExit;
+
+var activePars = course.pars.slice(0, course.holes);
+var np = players.length;
+
+var sc0 = useState(activePars.map(function(p) { return players.map(function() { return p; }); }));
+var scores = sc0[0]; var setScores = sc0[1];
+var h0 = useState(0);
+var currentHole = h0[0]; var setCurrentHole = h0[1];
+
+function updateScore(pi, delta) {
+setScores(function(prev) {
+var n = prev.map(function(row) { return row.slice(); });
+n[currentHole][pi] = Math.max(1, Math.min(12, n[currentHole][pi] + delta));
+return n;
+});
+}
+
+// Calculate skins with carryover
+var playerSkins = players.map(function() { return 0; });
+var pot = 0;
+var skinResults = activePars.map(function(_, i) {
+pot++;
+var hScores = scores[i];
+var minScore = Math.min.apply(null, hScores);
+var winners = [];
+hScores.forEach(function(s, pi) { if (s === minScore) winners.push(pi); });
+if (winners.length === 1) {
+playerSkins[winners[0]] += pot;
+var w = winners[0]; var p = pot; pot = 0;
+return { winner: w, pot: p, tied: false };
+}
+return { winner: null, pot: pot, tied: true };
 });
 
+var par = activePars[currentHole];
+var carryPot = skinResults[currentHole] ? skinResults[currentHole].pot : pot;
+
+return ce(“div”, { style: { flex: 1, display: “flex”, flexDirection: “column”, background: C.bg } },
+ce(“div”, { style: { background: C.header, padding: “16px 24px 14px”, flexShrink: 0 } },
+ce(“div”, { style: { display: “flex”, justifyContent: “space-between”, alignItems: “flex-start”, marginBottom: 10 } },
+ce(“div”, null,
+ce(“div”, { style: { fontSize: 10, color: MYB, fontWeight: 700, textTransform: “uppercase”, letterSpacing: “0.1em” } }, course.name),
+ce(“div”, { style: { fontSize: 10, color: “rgba(255,255,255,0.6)”, marginTop: 2 } }, “Skins  -  Par “ + par + (carryPot > 1 ? “  (” + carryPot + “ skins on the line)” : “”)),
+ce(“div”, { style: { fontSize: 24, fontWeight: 900, color: “#fff”, marginTop: 4 } }, “Hole “ + (currentHole + 1) + “ of “ + course.holes)
+),
+ce(“button”, { onClick: onExit, style: { fontSize: 10, color: “rgba(255,255,255,0.4)”, background: “none”, border: “none”, cursor: “pointer” } }, “Exit”)
+),
+ce(“div”, { style: { display: “flex”, gap: 6 } },
+players.map(function(name, pi) {
+return ce(“div”, { key: pi, style: { flex: 1, background: “rgba(255,255,255,0.12)”, borderRadius: 9, padding: “8px 6px”, textAlign: “center” } },
+ce(“div”, { style: { fontSize: 10, fontWeight: 700, color: “rgba(255,255,255,0.75)” } }, name.split(” “)[0]),
+ce(“div”, { style: { fontSize: 20, fontWeight: 900, color: playerSkins[pi] > 0 ? MYB : “rgba(255,255,255,0.4)” } }, playerSkins[pi])
+);
+})
+)
+),
+ce(“div”, { style: { flex: 1, overflowY: “auto”, padding: “14px 20px 12px” } },
+ce(“div”, { style: { display: “flex”, flexDirection: “column”, gap: 8, marginBottom: 16 } },
+players.map(function(name, pi) {
+var s = scores[currentHole][pi];
+var d = s - par;
+var sc = d < 0 ? “#0B6E3F” : d === 0 ? MG : d <= 2 ? PC : RED;
+return ce(“div”, { key: pi, style: { background: C.card, borderRadius: 14, border: “1.5px solid “ + C.cardBorder, padding: “14px 16px”, display: “flex”, alignItems: “center”, gap: 14 } },
+ce(“div”, { style: { flex: 1 } },
+ce(“div”, { style: { fontSize: 14, fontWeight: 700, color: C.text } }, name),
+ce(“div”, { style: { fontSize: 11, color: sc, marginTop: 2, fontWeight: 600 } }, d === 0 ? “Par” : d < 0 ? (d === -1 ? “Birdie” : “Eagle”) : d === 1 ? “Bogey” : “+” + d)
+),
+ce(“div”, { style: { display: “flex”, alignItems: “center”, gap: 12 } },
+ce(“button”, { onClick: function() { updateScore(pi, -1); }, style: { width: 38, height: 38, borderRadius: 10, background: C.btnBg, border: “1px solid “ + C.btnBorder, color: C.text, fontSize: 20, fontWeight: 700 } }, “-”),
+ce(“div”, { style: { fontSize: 28, fontWeight: 900, color: sc, minWidth: 30, textAlign: “center” } }, s),
+ce(“button”, { onClick: function() { updateScore(pi, 1); }, style: { width: 38, height: 38, borderRadius: 10, background: MG, border: “none”, color: “#fff”, fontSize: 20, fontWeight: 700 } }, “+”)
+)
+);
+})
+),
+// Hole summary strip
+ce(“div”, { style: { background: C.card, borderRadius: 12, border: “1px solid “ + C.cardBorder, overflow: “hidden” } },
+ce(“div”, { style: { display: “flex”, padding: “7px 12px”, background: C.bgAlt, borderBottom: “1px solid “ + C.cardBorder } },
+ce(“div”, { style: { width: 24, fontSize: 9, color: C.muted, textTransform: “uppercase”, fontWeight: 600 } }, “H”),
+players.map(function(n, pi) { return ce(“div”, { key: pi, style: { flex: 1, textAlign: “center”, fontSize: 9, color: C.muted, textTransform: “uppercase”, fontWeight: 600, overflow: “hidden”, textOverflow: “ellipsis”, whiteSpace: “nowrap” } }, n.split(” “)[0]); }),
+ce(“div”, { style: { width: 56, textAlign: “center”, fontSize: 9, color: C.muted, textTransform: “uppercase”, fontWeight: 600 } }, “Result”)
+),
+skinResults.map(function(skin, i) {
+var isCurr = i === currentHole;
+return ce(“div”, { key: i, onClick: function() { setCurrentHole(i); },
+style: { display: “flex”, alignItems: “center”, padding: “7px 12px”, borderBottom: i < skinResults.length - 1 ? “1px solid “ + C.cardBorder : “none”, background: isCurr ? “#E8F5EE” : i % 2 === 0 ? “transparent” : C.bgAlt + “55”, cursor: “pointer” }
+},
+ce(“div”, { style: { width: 24, fontSize: 11, fontWeight: 700, color: isCurr ? MG : C.muted } }, i + 1),
+players.map(function(_, pi) {
+var s = scores[i][pi];
+var d = s - activePars[i];
+var sc = d < 0 ? “#0B6E3F” : d === 0 ? MG : d <= 2 ? PC : RED;
+return ce(“div”, { key: pi, style: { flex: 1, textAlign: “center”, fontSize: 12, fontWeight: 800, color: sc } }, s);
+}),
+ce(“div”, { style: { width: 56, textAlign: “center”, fontSize: 10, fontWeight: 700, color: skin.winner !== null ? MG : skin.tied ? PC : C.mutedLight } },
+skin.winner !== null ? players[skin.winner].split(” “)[0] + “ +” + skin.pot : skin.tied ? “Tied” : “-”
+)
+);
+})
+)
+),
+ce(“div”, { style: { padding: “12px 20px”, display: “flex”, gap: 10, background: C.card, borderTop: “1px solid “ + C.cardBorder, flexShrink: 0 } },
+currentHole > 0 ? ce(“button”, { onClick: function() { setCurrentHole(function(h) { return h - 1; }); }, style: { flex: 1, padding: “15px”, borderRadius: 12, background: C.bgAlt, border: “1px solid “ + C.cardBorder, color: C.muted, fontSize: 14, fontWeight: 700 } }, “< Back”) : null,
+currentHole < course.holes - 1
+? ce(“button”, { onClick: function() { setCurrentHole(function(h) { return h + 1; }); }, style: { flex: 2, padding: “15px”, borderRadius: 12, background: MG, border: “none”, color: “#fff”, fontWeight: 800, fontSize: 15 } }, “Next Hole >”)
+: ce(“button”, { onClick: function() { onComplete({ type: “skins”, playerSkins: playerSkins, players: players, courseName: course.name, date: new Date().toLocaleDateString() }); }, style: { flex: 2, padding: “15px”, borderRadius: 12, background: MY, border: “none”, color: “#000”, fontWeight: 800, fontSize: 14 } }, “Final Results”)
+)
+);
+}
+
+// –– SCRAMBLE TRACKER —————————————————––
+function ScrambleTracker(props) {
+var course     = props.course;
+var teamName   = props.teamName || “Team”;
+var onComplete = props.onComplete;
+var onExit     = props.onExit;
+
+var activePars = course.pars.slice(0, course.holes);
+var sc0 = useState(activePars.slice());
+var scores = sc0[0]; var setScores = sc0[1];
+var h0 = useState(0);
+var currentHole = h0[0]; var setCurrentHole = h0[1];
+
+function updateScore(delta) {
+setScores(function(prev) {
+var n = prev.slice();
+n[currentHole] = Math.max(1, Math.min(10, n[currentHole] + delta));
+return n;
+});
+}
+
+var par        = activePars[currentHole];
+var score      = scores[currentHole];
+var diff       = score - par;
+var sc         = diff <= -2 ? “#0B6E3F” : diff === -1 ? MG : diff === 0 ? “#4A8C6E” : diff <= 2 ? PC : RED;
+var sbg        = diff <= -2 ? “#D4EDDA” : diff === -1 ? “#E8F5EE” : diff === 0 ? “#F0FAF4” : diff <= 2 ? “#FFF0EB” : “#FFEBEB”;
+var totalScore = scores.reduce(function(a, b) { return a + b; }, 0);
+var totalPar   = activePars.reduce(function(a, b) { return a + b; }, 0);
+var runDiff    = scores.slice(0, currentHole + 1).reduce(function(a, b, i) { return a + b - activePars[i]; }, 0);
+var diffLabel  = diff === 0 ? “Par” : diff === -1 ? “Birdie” : diff <= -2 ? “Eagle” : diff === 1 ? “Bogey” : “+” + diff;
+
+return ce(“div”, { style: { flex: 1, display: “flex”, flexDirection: “column”, background: C.bg } },
+ce(“div”, { style: { background: C.header, padding: “16px 24px 14px”, flexShrink: 0 } },
+ce(“div”, { style: { display: “flex”, justifyContent: “space-between”, alignItems: “flex-start”, marginBottom: 12 } },
+ce(“div”, null,
+ce(“div”, { style: { fontSize: 10, color: MYB, fontWeight: 700, textTransform: “uppercase”, letterSpacing: “0.1em” } }, course.name),
+ce(“div”, { style: { fontSize: 10, color: “rgba(255,255,255,0.6)”, marginTop: 2 } }, “Scramble  -  “ + teamName),
+ce(“div”, { style: { fontSize: 24, fontWeight: 900, color: “#fff”, marginTop: 4 } }, “Hole “ + (currentHole + 1) + “ of “ + course.holes)
+),
+ce(“div”, { style: { textAlign: “right” } },
+ce(“div”, { style: { fontSize: 10, color: “rgba(255,255,255,0.6)” } }, “Score”),
+ce(“div”, { style: { fontSize: 32, fontWeight: 900, color: runDiff < 0 ? MYB : runDiff === 0 ? “#fff” : “#FFB5A0” } }, runDiff === 0 ? “E” : runDiff > 0 ? “+” + runDiff : “” + runDiff),
+ce(“button”, { onClick: onExit, style: { fontSize: 10, color: “rgba(255,255,255,0.4)”, background: “none”, border: “none”, cursor: “pointer”, display: “block”, marginTop: 4 } }, “Exit”)
+)
+),
+ce(“div”, { style: { overflowX: “auto”, display: “flex”, gap: 5 } },
+activePars.map(function(_, i) {
+var isActive = i === currentHole;
+var d = scores[i] - activePars[i];
+var tc = d < 0 ? MYB : d === 0 ? “rgba(255,255,255,0.6)” : “#FFB5A0”;
+return ce(“div”, { key: i, onClick: function() { setCurrentHole(i); },
+style: { flexShrink: 0, width: 32, height: 42, borderRadius: 7, display: “flex”, flexDirection: “column”, alignItems: “center”, justifyContent: “center”, cursor: “pointer”, border: “2px solid “ + (isActive ? MYB : “transparent”), background: “rgba(255,255,255,0.08)”, gap: 1 }
+},
+ce(“div”, { style: { fontSize: 8, color: isActive ? MYB : “rgba(255,255,255,0.4)” } }, i + 1),
+ce(“div”, { style: { fontSize: 11, fontWeight: 800, color: isActive ? MYB : tc } }, scores[i])
+);
+})
+)
+),
+ce(“div”, { style: { flex: 1, display: “flex”, flexDirection: “column”, alignItems: “center”, justifyContent: “center”, padding: “20px 32px” } },
+ce(“div”, { style: { textAlign: “center”, width: “100%” } },
+ce(“div”, { style: { fontSize: 13, color: C.muted, fontWeight: 600, marginBottom: 4 } }, “TEAM SCORE  -  PAR “ + par),
+ce(“div”, { style: { fontSize: 100, fontWeight: 900, color: sc, lineHeight: 1, marginBottom: 6 } }, score),
+ce(“div”, { style: { display: “inline-block”, fontSize: 14, fontWeight: 800, color: sc, background: sbg, padding: “5px 18px”, borderRadius: 20, marginBottom: 28, border: “1px solid “ + sc + “33” } }, diffLabel),
+ce(“div”, { style: { display: “flex”, alignItems: “center”, justifyContent: “center”, gap: 40 } },
+ce(“button”, { onClick: function() { updateScore(-1); }, style: { width: 80, height: 80, borderRadius: 24, fontSize: 40, fontWeight: 700, background: C.card, border: “2px solid “ + C.border, color: C.text } }, “-”),
+ce(“button”, { onClick: function() { updateScore(1); }, style: { width: 80, height: 80, borderRadius: 24, fontSize: 40, fontWeight: 700, background: MG, border: “none”, color: “#fff” } }, “+”)
+)
+)
+),
+ce(“div”, { style: { padding: “12px 20px”, display: “flex”, gap: 10, background: C.card, borderTop: “1px solid “ + C.cardBorder, flexShrink: 0 } },
+currentHole > 0 ? ce(“button”, { onClick: function() { setCurrentHole(function(h) { return h - 1; }); }, style: { flex: 1, padding: “15px”, borderRadius: 12, background: C.bgAlt, border: “1px solid “ + C.cardBorder, color: C.muted, fontSize: 14, fontWeight: 700 } }, “< Back”) : null,
+currentHole < course.holes - 1
+? ce(“button”, { onClick: function() { setCurrentHole(function(h) { return h + 1; }); }, style: { flex: 2, padding: “15px”, borderRadius: 12, background: MG, border: “none”, color: “#fff”, fontWeight: 800, fontSize: 15 } }, “Next Hole >”)
+: ce(“button”, { onClick: function() { onComplete({ type: “scramble”, totalScore: totalScore, totalPar: totalPar, diff: totalScore - totalPar, teamName: teamName, courseName: course.name, date: new Date().toLocaleDateString() }); }, style: { flex: 2, padding: “15px”, borderRadius: 12, background: MY, border: “none”, color: “#000”, fontWeight: 800, fontSize: 15 } }, “Finish Round”)
+)
+);
+}
+
+// –– WOLF TRACKER ———————————————————–
+function WolfTracker(props) {
+var course     = props.course;
+var players    = props.players;
+var onComplete = props.onComplete;
+var onExit     = props.onExit;
+
+var activePars = course.pars.slice(0, course.holes);
+var np = players.length;
+
+var hs0 = useState(activePars.map(function(p) {
+return { partner: null, goSolo: false, scored: false, scores: players.map(function() { return p; }) };
+}));
+var holeStates = hs0[0]; var setHoleStates = hs0[1];
+var h0 = useState(0);
+var currentHole = h0[0]; var setCurrentHole = h0[1];
+var pts0 = useState(players.map(function() { return 0; }));
+var pts = pts0[0]; var setPts = pts0[1];
+
+var wolfIdx = currentHole % np;
+var hState  = holeStates[currentHole];
+var par     = activePars[currentHole];
+var decided = hState.partner !== null || hState.goSolo;
+
+function updateScore(pi, delta) {
+setHoleStates(function(prev) {
+var n = prev.map(function(h) { return Object.assign({}, h, { scores: h.scores.slice() }); });
+n[currentHole].scores[pi] = Math.max(1, Math.min(12, n[currentHole].scores[pi] + delta));
+return n;
+});
+}
+
+function setPartner(pi) {
+setHoleStates(function(prev) {
+var n = prev.map(function(h) { return Object.assign({}, h); });
+n[currentHole].partner = pi;
+n[currentHole].goSolo = false;
+return n;
+});
+}
+
+function setSolo() {
+setHoleStates(function(prev) {
+var n = prev.map(function(h) { return Object.assign({}, h); });
+n[currentHole].goSolo = true;
+n[currentHole].partner = null;
+return n;
+});
+}
+
+function scoreAndAdvance() {
+var hs = holeStates[currentHole];
+var hScores = hs.scores;
+var newPts = pts.slice();
+
+```
+if (hs.goSolo) {
+  var wolfScore = hScores[wolfIdx];
+  var others = [];
+  players.forEach(function(_, pi) { if (pi !== wolfIdx) others.push(pi); });
+  var wolfWins = others.every(function(pi) { return wolfScore < hScores[pi]; });
+  if (wolfWins) { newPts[wolfIdx] += np; }
+  else { others.forEach(function(pi) { newPts[pi] += 2; }); }
+} else if (hs.partner !== null) {
+  var partner = hs.partner;
+  var ourBest = Math.min(hScores[wolfIdx], hScores[partner]);
+  var theirScores = [];
+  players.forEach(function(_, pi) { if (pi !== wolfIdx && pi !== partner) theirScores.push(hScores[pi]); });
+  var theirBest = Math.min.apply(null, theirScores);
+  if (ourBest < theirBest) { newPts[wolfIdx] += 2; newPts[partner] += 2; }
+  else { players.forEach(function(_, pi) { if (pi !== wolfIdx && pi !== partner) newPts[pi] += 2; }); }
+}
+
+setHoleStates(function(prev) {
+  var n = prev.map(function(h) { return Object.assign({}, h); });
+  n[currentHole].scored = true;
+  return n;
+});
+setPts(newPts);
+
+if (currentHole < course.holes - 1) { setCurrentHole(currentHole + 1); }
+else { onComplete({ type: "wolf", pts: newPts, players: players, courseName: course.name, date: new Date().toLocaleDateString() }); }
+```
+
+}
+
+return ce(“div”, { style: { flex: 1, display: “flex”, flexDirection: “column”, background: C.bg } },
+ce(“div”, { style: { background: C.header, padding: “16px 24px 14px”, flexShrink: 0 } },
+ce(“div”, { style: { display: “flex”, justifyContent: “space-between”, alignItems: “flex-start”, marginBottom: 10 } },
+ce(“div”, null,
+ce(“div”, { style: { fontSize: 10, color: MYB, fontWeight: 700, textTransform: “uppercase”, letterSpacing: “0.1em” } }, course.name),
+ce(“div”, { style: { fontSize: 10, color: “rgba(255,255,255,0.6)”, marginTop: 2 } }, “Wolf  -  Hole “ + (currentHole + 1) + “ of “ + course.holes),
+ce(“div”, { style: { fontSize: 20, fontWeight: 900, color: MYB, marginTop: 6 } }, players[wolfIdx] + “ is the Wolf”)
+),
+ce(“button”, { onClick: onExit, style: { fontSize: 10, color: “rgba(255,255,255,0.4)”, background: “none”, border: “none”, cursor: “pointer” } }, “Exit”)
+),
+ce(“div”, { style: { display: “flex”, gap: 5 } },
+players.map(function(name, pi) {
+var isWolf = pi === wolfIdx;
+return ce(“div”, { key: pi, style: { flex: 1, background: isWolf ? MYB : “rgba(255,255,255,0.1)”, borderRadius: 8, padding: “7px 4px”, textAlign: “center” } },
+ce(“div”, { style: { fontSize: 9, fontWeight: 800, color: isWolf ? “#000” : “rgba(255,255,255,0.6)”, textTransform: “uppercase” } }, isWolf ? “Wolf” : name.split(” “)[0]),
+ce(“div”, { style: { fontSize: 18, fontWeight: 900, color: isWolf ? “#000” : MYB } }, pts[pi])
+);
+})
+)
+),
+ce(“div”, { style: { flex: 1, overflowY: “auto”, padding: “16px 20px 12px” } },
+// Step 1: choose partner or go solo
+!decided ? ce(“div”, { style: { marginBottom: 16 } },
+ce(“div”, { style: { fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 12 } }, “Wolf chooses after seeing tee shots:”),
+ce(“div”, { style: { display: “flex”, flexDirection: “column”, gap: 8 } },
+players.map(function(name, pi) {
+if (pi === wolfIdx) return null;
+return ce(“button”, { key: pi, onClick: function() { setPartner(pi); },
+style: { width: “100%”, padding: “15px 18px”, borderRadius: 14, background: “#E8F5EE”, border: “2px solid “ + MG + “44”, color: MG, fontSize: 15, fontWeight: 800, textAlign: “left”, cursor: “pointer” }
+}, “Partner with “ + name);
+}),
+ce(“button”, { onClick: setSolo,
+style: { width: “100%”, padding: “15px 18px”, borderRadius: 14, background: “#FFF0EB”, border: “2px solid “ + PC + “44”, color: PC, fontSize: 15, fontWeight: 800, cursor: “pointer” }
+}, “Go Solo  (2x points if Wolf wins)”)
+)
+) : null,
+// Step 2: enter scores
+decided ? ce(“div”, null,
+ce(“div”, { style: { background: hState.goSolo ? “#FFF0EB” : “#E8F5EE”, borderRadius: 12, padding: “10px 14px”, marginBottom: 12, border: “1.5px solid “ + (hState.goSolo ? PC + “55” : MG + “55”) } },
+ce(“div”, { style: { fontSize: 13, fontWeight: 700, color: hState.goSolo ? PC : MG } },
+hState.goSolo
+? players[wolfIdx] + “ going SOLO  vs all”
+: players[wolfIdx] + “ + “ + players[hState.partner] + “  vs the field”
+),
+ce(“div”, { style: { fontSize: 10, color: C.muted, marginTop: 3 } }, “Par “ + par + “  -  Enter all scores then tap Score Hole”)
+),
+ce(“div”, { style: { display: “flex”, flexDirection: “column”, gap: 8 } },
+players.map(function(name, pi) {
+var s = hState.scores[pi];
+var d = s - par;
+var sc = d < 0 ? “#0B6E3F” : d === 0 ? MG : d <= 2 ? PC : RED;
+var isWolf    = pi === wolfIdx;
+var isPartner = hState.partner === pi;
+return ce(“div”, { key: pi, style: { background: C.card, borderRadius: 12, border: “2px solid “ + ((isWolf || isPartner) ? MG + “55” : C.cardBorder), padding: “12px 16px”, display: “flex”, alignItems: “center”, gap: 12 } },
+ce(“div”, { style: { flex: 1 } },
+ce(“div”, { style: { fontSize: 13, fontWeight: 700, color: C.text } }, name),
+ce(“div”, { style: { fontSize: 10, color: isWolf ? MYB : isPartner ? MG : C.muted, fontWeight: 700, textTransform: “uppercase”, marginTop: 2 } }, isWolf ? “Wolf” : isPartner ? “Partner” : “”)
+),
+ce(“div”, { style: { display: “flex”, alignItems: “center”, gap: 12 } },
+ce(“button”, { onClick: function() { updateScore(pi, -1); }, style: { width: 36, height: 36, borderRadius: 9, background: C.btnBg, border: “1px solid “ + C.btnBorder, color: C.text, fontSize: 20, fontWeight: 700 } }, “-”),
+ce(“div”, { style: { fontSize: 26, fontWeight: 900, color: sc, minWidth: 28, textAlign: “center” } }, s),
+ce(“button”, { onClick: function() { updateScore(pi, 1); }, style: { width: 36, height: 36, borderRadius: 9, background: MG, border: “none”, color: “#fff”, fontSize: 20, fontWeight: 700 } }, “+”)
+)
+);
+})
+)
+) : null
+),
+ce(“div”, { style: { padding: “12px 20px”, display: “flex”, gap: 10, background: C.card, borderTop: “1px solid “ + C.cardBorder, flexShrink: 0 } },
+currentHole > 0 ? ce(“button”, { onClick: function() { setCurrentHole(function(h) { return h - 1; }); }, style: { flex: 1, padding: “15px”, borderRadius: 12, background: C.bgAlt, border: “1px solid “ + C.cardBorder, color: C.muted, fontSize: 14, fontWeight: 700 } }, “< Back”) : null,
+decided ? ce(“button”, { onClick: scoreAndAdvance,
+style: { flex: 2, padding: “15px”, borderRadius: 12, background: currentHole < course.holes - 1 ? MG : MY, border: “none”, color: currentHole < course.holes - 1 ? “#fff” : “#000”, fontWeight: 800, fontSize: 15 }
+}, currentHole < course.holes - 1 ? “Score Hole >” : “Final Results”) : null
+)
+);
+}
+
+// –– HANDICAP CALCULATOR (pulls from round history) ———————––
+function HandicapCalc(props) {
+var onClose = props.onClose;
+var history = props.history || [];
+
+var excl0 = useState({});
+var excluded = excl0[0]; var setExcluded = excl0[1];
+
+var allDiffs = history.slice(0, 20).map(function(r) {
+return {
+courseName: r.courseName || “Round”,
+date:       r.date || “”,
+score:      r.totalScore,
+par:        r.totalPar,
+holes:      r.holes || 18,
+diff:       r.holes === 9 ? (r.totalScore - r.totalPar) * 2 : (r.totalScore - r.totalPar)
+};
+});
+
+function toggleExclude(i) {
+setExcluded(function(prev) {
+var n = Object.assign({}, prev);
+if (n[i]) delete n[i]; else n[i] = true;
+return n;
+});
+}
+
+var includedDiffs = allDiffs.filter(function(_, i) { return !excluded[i]; }).map(function(r) { return r.diff; });
+
+function getBestCount(n) {
+if (n >= 20) return 8; if (n >= 17) return 7; if (n >= 14) return 6;
+if (n >= 11) return 5; if (n >= 9)  return 4; if (n >= 7)  return 3;
+if (n >= 5)  return 2; return 1;
+}
+
 var handicapIndex = null;
-if (diffs.length > 0) {
-var sorted = diffs.slice().sort(function(a, b) { return a - b; });
-// Use best 40% of rounds (min 1)
-var useCount = Math.max(1, Math.floor(sorted.length * 0.4));
+if (includedDiffs.length >= 3) {
+var sorted = includedDiffs.slice().sort(function(a, b) { return a - b; });
+var useCount = getBestCount(sorted.length);
 var best = sorted.slice(0, useCount);
 var avg = best.reduce(function(a, b) { return a + b; }, 0) / best.length;
 handicapIndex = Math.round(avg * 10) / 10;
 }
 
-var parOptions = [27, 34, 35, 36, 67, 68, 69, 70, 71, 72];
-
 return ce(“div”, { style: { position: “fixed”, inset: 0, background: C.bg, zIndex: 300, display: “flex”, flexDirection: “column”, maxWidth: 430, margin: “0 auto” } },
-// Header
 ce(“div”, { style: { background: C.header, padding: “20px 24px 18px”, flexShrink: 0 } },
 ce(“div”, { style: { display: “flex”, justifyContent: “space-between”, alignItems: “flex-start” } },
 ce(“div”, null,
@@ -664,60 +1139,48 @@ ce(“div”, { style: { fontSize: 26, fontWeight: 900, color: “#fff” } }, �
 ),
 ce(“button”, { onClick: onClose, style: { width: 36, height: 36, borderRadius: 10, background: “rgba(255,255,255,0.15)”, border: “none”, color: “#fff”, fontSize: 16, cursor: “pointer” } }, “X”)
 ),
-handicapIndex !== null ? ce(“div”, { style: { marginTop: 14, background: “rgba(255,255,255,0.12)”, borderRadius: 12, padding: “12px 16px”, display: “flex”, alignItems: “center”, justifyContent: “space-between” } },
+handicapIndex !== null ? ce(“div”, { style: { marginTop: 14, background: “rgba(255,255,255,0.12)”, borderRadius: 12, padding: “12px 18px”, display: “flex”, alignItems: “center”, justifyContent: “space-between” } },
 ce(“div”, null,
-ce(“div”, { style: { fontSize: 11, color: “rgba(255,255,255,0.65)” } }, “Estimated Handicap Index”),
-ce(“div”, { style: { fontSize: 10, color: “rgba(255,255,255,0.4)”, marginTop: 2 } }, “Based on “ + diffs.length + “ round” + (diffs.length !== 1 ? “s” : “”) + “ entered below”)
+ce(“div”, { style: { fontSize: 12, color: “rgba(255,255,255,0.75)”, fontWeight: 600 } }, “Handicap Index”),
+ce(“div”, { style: { fontSize: 10, color: “rgba(255,255,255,0.45)”, marginTop: 3 } }, “Best “ + getBestCount(includedDiffs.length) + “ of “ + includedDiffs.length + “ rounds  (USGA method)”)
 ),
-ce(“div”, { style: { fontSize: 40, fontWeight: 900, color: MYB } }, handicapIndex > 0 ? “+” + handicapIndex : “” + handicapIndex)
-) : null
+ce(“div”, { style: { fontSize: 44, fontWeight: 900, color: MYB } }, handicapIndex > 0 ? “+” + handicapIndex : “” + handicapIndex)
+) : history.length === 0 ? null :
+ce(“div”, { style: { marginTop: 12, background: “rgba(255,255,255,0.1)”, borderRadius: 10, padding: “10px 14px”, fontSize: 12, color: “rgba(255,255,255,0.6)” } }, “Play at least 3 rounds to calculate.”)
 ),
-// Rounds entry
 ce(“div”, { style: { flex: 1, overflowY: “auto”, padding: “16px 20px 40px” } },
-ce(“div”, { style: { fontSize: 12, color: C.muted, marginBottom: 16, lineHeight: 1.6 } },
-“Enter up to 5 recent rounds. Handicap uses your best scores. Leave unused rows blank.”
-),
+history.length === 0 ?
+ce(“div”, { style: { textAlign: “center”, padding: “40px 20px” } },
+ce(“div”, { style: { fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 10 } }, “No rounds logged yet”),
+ce(“div”, { style: { fontSize: 12, color: C.muted, lineHeight: 1.7 } }, “Save rounds after playing and they will appear here automatically. Your last 20 rounds feed the calculation.”)
+) :
+ce(“div”, null,
+ce(“div”, { style: { fontSize: 11, color: C.muted, marginBottom: 14, lineHeight: 1.6 } }, “Tap a row to exclude it from the calculation. 9-hole rounds are doubled.”),
 ce(“div”, { style: { background: C.card, borderRadius: 14, border: “1px solid “ + C.cardBorder, overflow: “hidden”, marginBottom: 16 } },
-// Header row
-ce(“div”, { style: { display: “flex”, padding: “9px 14px”, background: C.bgAlt, borderBottom: “1px solid “ + C.cardBorder } },
+ce(“div”, { style: { display: “flex”, padding: “8px 14px”, background: C.bgAlt, borderBottom: “1px solid “ + C.cardBorder } },
 ce(“div”, { style: { flex: 1, fontSize: 10, color: C.muted, textTransform: “uppercase”, fontWeight: 600 } }, “Round”),
-ce(“div”, { style: { width: 80, textAlign: “center”, fontSize: 10, color: C.muted, textTransform: “uppercase”, fontWeight: 600 } }, “Score”),
-ce(“div”, { style: { width: 80, textAlign: “center”, fontSize: 10, color: C.muted, textTransform: “uppercase”, fontWeight: 600 } }, “Course Par”),
-ce(“div”, { style: { width: 60, textAlign: “center”, fontSize: 10, color: C.muted, textTransform: “uppercase”, fontWeight: 600 } }, “Diff”)
+ce(“div”, { style: { width: 50, textAlign: “center”, fontSize: 10, color: C.muted, textTransform: “uppercase”, fontWeight: 600 } }, “Score”),
+ce(“div”, { style: { width: 42, textAlign: “center”, fontSize: 10, color: C.muted, textTransform: “uppercase”, fontWeight: 600 } }, “Par”),
+ce(“div”, { style: { width: 48, textAlign: “center”, fontSize: 10, color: C.muted, textTransform: “uppercase”, fontWeight: 600 } }, “Diff”)
 ),
-rounds.map(function(r, i) {
-var s = parseInt(r.score, 10);
-var p = parseInt(r.par, 10) || 72;
-var diff = (!isNaN(s) && r.score !== “”) ? (s - p) : null;
-var dc = diff === null ? C.mutedLight : diff < 0 ? “#0B6E3F” : diff === 0 ? MG : diff <= 5 ? PC : RED;
-return ce(“div”, { key: i, style: { display: “flex”, alignItems: “center”, padding: “10px 14px”, borderBottom: i < 4 ? “1px solid “ + C.cardBorder : “none”, background: i % 2 === 0 ? “transparent” : C.bgAlt + “66” } },
-ce(“div”, { style: { flex: 1, fontSize: 12, color: C.muted } }, “Round “ + (i + 1)),
-ce(“input”, {
-type: “number”,
-value: r.score,
-onChange: function(e) { updateRound(i, “score”, e.target.value); },
-placeholder: “-”,
-style: { width: 72, textAlign: “center”, padding: “7px 4px”, borderRadius: 8, background: C.input, border: “1px solid “ + C.inputBorder, color: C.text, fontSize: 14, fontWeight: 700, outline: “none” }
-}),
-ce(“select”, {
-value: r.par,
-onChange: function(e) { updateRound(i, “par”, e.target.value); },
-style: { width: 72, textAlign: “center”, padding: “7px 4px”, borderRadius: 8, background: C.input, border: “1px solid “ + C.inputBorder, color: C.text, fontSize: 13, outline: “none”, marginLeft: 8 }
+allDiffs.map(function(r, i) {
+var isExcl = !!excluded[i];
+var d = r.diff;
+var dc = d < 0 ? “#0B6E3F” : d === 0 ? MG : d <= 5 ? PC : RED;
+return ce(“div”, { key: i, onClick: function() { toggleExclude(i); },
+style: { display: “flex”, alignItems: “center”, padding: “9px 14px”, borderBottom: i < allDiffs.length - 1 ? “1px solid “ + C.cardBorder : “none”, background: isExcl ? “#FFF5F5” : i % 2 === 0 ? “transparent” : C.bgAlt + “66”, cursor: “pointer”, opacity: isExcl ? 0.45 : 1 }
 },
-parOptions.map(function(p) {
-return ce(“option”, { key: p, value: p }, p);
-})
+ce(“div”, { style: { flex: 1, minWidth: 0 } },
+ce(“div”, { style: { fontSize: 12, fontWeight: 600, color: C.text, overflow: “hidden”, textOverflow: “ellipsis”, whiteSpace: “nowrap”, textDecoration: isExcl ? “line-through” : “none” } }, r.courseName),
+ce(“div”, { style: { fontSize: 10, color: C.mutedLight, marginTop: 1 } }, r.date + (r.holes === 9 ? “  9H” : “”))
 ),
-ce(“div”, { style: { width: 52, textAlign: “center”, fontSize: 14, fontWeight: 800, color: dc } },
-diff !== null ? (diff > 0 ? “+” + diff : “” + diff) : “-”
-)
+ce(“div”, { style: { width: 50, textAlign: “center”, fontSize: 13, fontWeight: 700, color: C.text } }, r.score),
+ce(“div”, { style: { width: 42, textAlign: “center”, fontSize: 12, color: C.muted } }, r.par),
+ce(“div”, { style: { width: 48, textAlign: “center”, fontSize: 13, fontWeight: 800, color: isExcl ? C.muted : dc } }, d > 0 ? “+” + d : “” + d)
 );
 })
 ),
-ce(“div”, { style: { fontSize: 11, color: C.mutedLight, textAlign: “center”, lineHeight: 1.7 } },
-“This is a simplified estimate. For an official USGA Handicap Index,”,
-ce(“br”),
-“register with a club or use the GHIN app.”
+ce(“div”, { style: { fontSize: 11, color: C.mutedLight, textAlign: “center”, lineHeight: 1.7 } }, “For an official USGA Handicap Index, use the GHIN app.”)
 )
 )
 );
@@ -728,13 +1191,22 @@ function PreRoundSetup(props) {
 var course   = props.course;
 var onStart  = props.onStart;
 var onBack   = props.onBack;
+var history  = props.history || [];
 
 var prPars0  = useState(course.pars ? course.pars.slice() : Array(18).fill(4));
 var prPars   = prPars0[0]; var setPrPars = prPars0[1];
 var prHoles0 = useState(course.holes || 18);
 var prHoles  = prHoles0[0]; var setPrHoles = prHoles0[1];
+var mode0    = useState(“stroke”);
+var gameMode = mode0[0]; var setGameMode = mode0[1];
 var showHC0  = useState(false);
 var showHC   = showHC0[0]; var setShowHC = showHC0[1];
+var pnames0  = useState([“Player 1”, “Player 2”, “Player 3”, “Player 4”]);
+var playerNames = pnames0[0]; var setPlayerNames = pnames0[1];
+var numP0    = useState(4);
+var numPlayers = numP0[0]; var setNumPlayers = numP0[1];
+var teamName0  = useState(“Our Team”);
+var teamName   = teamName0[0]; var setTeamName = teamName0[1];
 
 var prActivePars = prPars.slice(0, prHoles);
 var prTotalPar   = prActivePars.reduce(function(a, b) { return a + b; }, 0);
@@ -744,59 +1216,125 @@ setPrPars(function(prev) { var n = prev.slice(); n[i] = p; return n; });
 }
 
 function handleStart() {
-onStart(Object.assign({}, course, { holes: prHoles, pars: prPars.slice() }));
+var updatedCourse = Object.assign({}, course, { holes: prHoles, pars: prPars.slice() });
+var activePlayers = playerNames.slice(0, numPlayers);
+onStart(updatedCourse, gameMode, activePlayers, teamName);
 }
 
+function updatePlayerName(i, val) {
+setPlayerNames(function(prev) { var n = prev.slice(); n[i] = val; return n; });
+}
+
+var modes = [
+{ id: “stroke”,     label: “Stroke Play”,  desc: “Standard scoring vs par” },
+{ id: “stableford”, label: “Stableford”,   desc: “Points: Eagle+4 Birdie+3 Par+2 Bogey+1” },
+{ id: “skins”,      label: “Skins”,        desc: “Win holes, ties carry the pot” },
+{ id: “scramble”,   label: “Scramble”,     desc: “Best team shot each stroke” },
+{ id: “wolf”,       label: “Wolf”,         desc: “Rotating Wolf picks a partner each hole” }
+];
+
+var needsPlayers = gameMode === “skins” || gameMode === “wolf”;
+var needsTeam    = gameMode === “scramble”;
+var minPlayers   = gameMode === “wolf” ? 3 : 2;
+
 return ce(“div”, { style: { flex: 1, display: “flex”, flexDirection: “column”, overflow: “hidden”, background: C.bg } },
-showHC ? ce(HandicapCalc, { onClose: function() { setShowHC(false); } }) : null,
-// Header
+showHC ? ce(HandicapCalc, { onClose: function() { setShowHC(false); }, history: history }) : null,
 ce(“div”, { style: { background: C.header, padding: “20px 24px 18px”, flexShrink: 0 } },
-ce(“button”, { onClick: onBack, style: { background: “none”, border: “none”, color: “rgba(255,255,255,0.7)”, fontSize: 13, cursor: “pointer”, padding: “0 0 8px”, display: “block” } }, “< Back”),
 ce(“div”, { style: { display: “flex”, justifyContent: “space-between”, alignItems: “flex-start” } },
 ce(“div”, { style: { flex: 1, minWidth: 0 } },
+ce(“button”, { onClick: onBack, style: { background: “none”, border: “none”, color: “rgba(255,255,255,0.7)”, fontSize: 13, cursor: “pointer”, padding: “0 0 8px”, display: “block” } }, “< Back”),
 ce(“div”, { style: { fontSize: 10, color: MYB, letterSpacing: “0.12em”, textTransform: “uppercase”, fontWeight: 700, marginBottom: 4 } }, “Ready to Play”),
-ce(“div”, { style: { fontSize: 24, fontWeight: 900, color: “#fff”, overflow: “hidden”, textOverflow: “ellipsis”, whiteSpace: “nowrap” } }, course.name),
+ce(“div”, { style: { fontSize: 22, fontWeight: 900, color: “#fff”, overflow: “hidden”, textOverflow: “ellipsis”, whiteSpace: “nowrap” } }, course.name),
 course.address ? ce(“div”, { style: { fontSize: 12, color: “rgba(255,255,255,0.6)”, marginTop: 3 } }, course.address) : null
 ),
-ce(“button”, {
-onClick: function() { setShowHC(true); },
-style: { flexShrink: 0, marginLeft: 12, padding: “7px 13px”, borderRadius: 10, background: “rgba(255,255,255,0.12)”, border: “1px solid rgba(255,255,255,0.2)”, color: “rgba(255,255,255,0.85)”, fontSize: 11, fontWeight: 700, cursor: “pointer” }
-}, “HCP”)
+ce(“button”, { onClick: function() { setShowHC(true); }, style: { flexShrink: 0, marginLeft: 12, padding: “7px 14px”, borderRadius: 10, background: “rgba(255,255,255,0.12)”, border: “1px solid rgba(255,255,255,0.2)”, color: “rgba(255,255,255,0.85)”, fontSize: 11, fontWeight: 700, cursor: “pointer” } }, “HCP”)
 )
 ),
-// Content
 ce(“div”, { style: { flex: 1, overflowY: “auto”, padding: “20px 24px 40px”, display: “flex”, flexDirection: “column”, gap: 20 } },
-// Holes toggle
-ce(“div”, null,
-ce(“div”, { style: { fontSize: 10, color: C.muted, textTransform: “uppercase”, letterSpacing: “0.08em”, fontWeight: 600, marginBottom: 10 } }, “Holes”),
-ce(“div”, { style: { display: “flex”, gap: 10 } },
-[9, 18].map(function(h) {
-var active = prHoles === h;
-return ce(“button”, { key: h, onClick: function() { setPrHoles(h); },
-style: { flex: 1, padding: “14px”, borderRadius: 12, cursor: “pointer”, fontSize: 22, fontWeight: 900, border: “2px solid “ + (active ? MG : C.btnBorder), background: active ? MG : C.btnBg, color: active ? “#fff” : C.muted }
-}, h);
-})
+
+```
+  // Holes
+  ce("div", null,
+    ce("div", { style: { fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: 10 } }, "Holes"),
+    ce("div", { style: { display: "flex", gap: 10 } },
+      [9, 18].map(function(h) {
+        var active = prHoles === h;
+        return ce("button", { key: h, onClick: function() { setPrHoles(h); },
+          style: { flex: 1, padding: "14px", borderRadius: 12, cursor: "pointer", fontSize: 22, fontWeight: 900, border: "2px solid " + (active ? MG : C.btnBorder), background: active ? MG : C.btnBg, color: active ? "#fff" : C.muted }
+        }, h);
+      })
+    )
+  ),
+
+  // Game format
+  ce("div", null,
+    ce("div", { style: { fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: 10 } }, "Game Format"),
+    ce("div", { style: { display: "flex", flexDirection: "column", gap: 6 } },
+      modes.map(function(m) {
+        var active = gameMode === m.id;
+        return ce("button", { key: m.id, onClick: function() { setGameMode(m.id); },
+          style: { width: "100%", padding: "12px 16px", borderRadius: 12, cursor: "pointer", textAlign: "left", border: "2px solid " + (active ? MG : C.cardBorder), background: active ? "#E8F5EE" : C.card }
+        },
+          ce("div", { style: { fontSize: 14, fontWeight: 700, color: active ? MG : C.text } }, m.label),
+          ce("div", { style: { fontSize: 11, color: C.muted, marginTop: 2 } }, m.desc)
+        );
+      })
+    )
+  ),
+
+  // Player names (Skins / Wolf)
+  needsPlayers ? ce("div", null,
+    ce("div", { style: { fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: 10 } }, "Players (" + gameMode + " needs " + minPlayers + "-4)"),
+    ce("div", { style: { display: "flex", gap: 8, marginBottom: 10 } },
+      [3, 4].map(function(n) {
+        var active = numPlayers === n;
+        return ce("button", { key: n, onClick: function() { setNumPlayers(n); },
+          style: { flex: 1, padding: "10px", borderRadius: 10, cursor: "pointer", fontSize: 16, fontWeight: 800, border: "2px solid " + (active ? MG : C.btnBorder), background: active ? MG : C.btnBg, color: active ? "#fff" : C.muted }
+        }, n + " Players");
+      })
+    ),
+    ce("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+      Array.from({ length: numPlayers }, function(_, i) {
+        return ce("input", { key: i, value: playerNames[i], onChange: function(e) { updatePlayerName(i, e.target.value); },
+          placeholder: "Player " + (i + 1),
+          style: { width: "100%", padding: "11px 14px", borderRadius: 10, background: C.input, border: "1.5px solid " + C.inputBorder, color: C.text, fontSize: 14, outline: "none" }
+        });
+      })
+    )
+  ) : null,
+
+  // Team name (Scramble)
+  needsTeam ? ce("div", null,
+    ce("div", { style: { fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: 8 } }, "Team Name"),
+    ce("input", { value: teamName, onChange: function(e) { setTeamName(e.target.value); },
+      placeholder: "e.g. Dream Team",
+      style: { width: "100%", padding: "11px 14px", borderRadius: 10, background: C.input, border: "1.5px solid " + C.inputBorder, color: C.text, fontSize: 14, outline: "none" }
+    })
+  ) : null,
+
+  // Par per hole
+  ce("div", null,
+    ce("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 } },
+      ce("div", { style: { fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 } }, "Par per Hole"),
+      ce("div", { style: { fontSize: 13, fontWeight: 800, color: MG, background: "#E8F5EE", padding: "4px 12px", borderRadius: 8 } }, "Total Par: " + prTotalPar)
+    ),
+    ce("div", { style: { display: "flex", flexDirection: "column", gap: 6 } },
+      Array.from({ length: prHoles }, function(_, i) {
+        return ce(ParRow, { key: i, index: i, pars: prPars, onChange: handlePrPar });
+      })
+    )
+  ),
+
+  // Map
+  (course.lat && course.lng) ? ce(CourseMap, { lat: course.lat, lng: course.lng, name: course.name }) : null,
+
+  // Tee off
+  ce("button", { onClick: handleStart,
+    style: { width: "100%", padding: "18px", borderRadius: 14, background: MG, border: "none", color: "#fff", fontSize: 16, fontWeight: 900 }
+  }, "Tee Off  " + prHoles + " holes  Par " + prTotalPar)
 )
-),
-// Par per hole
-ce(“div”, null,
-ce(“div”, { style: { display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 12 } },
-ce(“div”, { style: { fontSize: 10, color: C.muted, textTransform: “uppercase”, letterSpacing: “0.08em”, fontWeight: 600 } }, “Par per Hole”),
-ce(“div”, { style: { fontSize: 13, fontWeight: 800, color: MG, background: “#E8F5EE”, padding: “4px 12px”, borderRadius: 8 } }, “Total Par: “ + prTotalPar)
-),
-ce(“div”, { style: { display: “flex”, flexDirection: “column”, gap: 6 } },
-Array.from({ length: prHoles }, function(_, i) {
-return ce(ParRow, { key: i, index: i, pars: prPars, onChange: handlePrPar });
-})
-)
-),
-// Map
-(course.lat && course.lng) ? ce(CourseMap, { lat: course.lat, lng: course.lng, name: course.name }) : null,
-// Tee off button
-ce(“button”, { onClick: handleStart,
-style: { width: “100%”, padding: “18px”, borderRadius: 14, background: MG, border: “none”, color: “#fff”, fontSize: 16, fontWeight: 900 }
-}, “Tee Off  “ + prHoles + “ holes  Par “ + prTotalPar)
-)
+```
+
 );
 }
 
@@ -818,6 +1356,9 @@ var ch = useState(0); var currentHole = ch[0]; var setCurrentHole = ch[1];
 var sq = useState([]); var scores = sq[0]; var setScores = sq[1];
 var ec = useState(null); var editingCourse = ec[0]; var setEditingCourse = ec[1];
 var prc = useState(null); var preRoundCourse = prc[0]; var setPreRoundCourse = prc[1];
+var gm0 = useState(“stroke”); var gameMode = gm0[0]; var setGameMode = gm0[1];
+var gp0 = useState([]); var gamePlayers = gp0[0]; var setGamePlayers = gp0[1];
+var gt0 = useState(“Our Team”); var gameTeamName = gt0[0]; var setGameTeamName = gt0[1];
 
 var currentPar      = selectedCourse && scores.length > currentHole ? selectedCourse.pars[currentHole] : 4;
 var currentHoleData = scores.length > currentHole ? scores[currentHole] : { score: 4, putts: 2, gir: false };
@@ -1019,16 +1560,45 @@ onCancel: function() { setView(“courses”); }
 if (view === “preRound” && preRoundCourse) {
 return ce(PreRoundSetup, {
 course: preRoundCourse,
-onStart: function(updatedCourse) {
-// Persist any par edits back to saved courses
+history: history,
+onStart: function(updatedCourse, mode, players, teamName) {
 var exists = courses.filter(function(c) { return c.id === updatedCourse.id; });
 if (exists.length > 0) {
 persistCourses(courses.map(function(c) { return c.id === updatedCourse.id ? updatedCourse : c; }));
 }
+setGameMode(mode);
+setGamePlayers(players);
+setGameTeamName(teamName);
+if (mode === “stroke”) {
 startRound(updatedCourse);
+} else {
+setSelectedCourse(updatedCourse);
+setView(“gameMode”);
+}
 },
 onBack: function() { setView(“setup”); setPreRoundCourse(null); }
 });
+}
+
+// –– GAME MODES ––
+if (view === “gameMode” && selectedCourse) {
+function exitGame() { setView(“setup”); setSelectedCourse(null); }
+function completeGame(result) {
+var next = [result].concat(history);
+setHistory(next); saveJSON(HISTORY_KEY, next); setView(“setup”); setSelectedCourse(null);
+}
+if (gameMode === “stableford”) {
+return ce(StablefordTracker, { course: selectedCourse, onComplete: completeGame, onExit: exitGame });
+}
+if (gameMode === “skins”) {
+return ce(SkinsTracker, { course: selectedCourse, players: gamePlayers, onComplete: completeGame, onExit: exitGame });
+}
+if (gameMode === “scramble”) {
+return ce(ScrambleTracker, { course: selectedCourse, teamName: gameTeamName, onComplete: completeGame, onExit: exitGame });
+}
+if (gameMode === “wolf”) {
+return ce(WolfTracker, { course: selectedCourse, players: gamePlayers, onComplete: completeGame, onExit: exitGame });
+}
 }
 
 // –– PLAYING ––
