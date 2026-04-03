@@ -5,57 +5,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#006747">
   <title>Golf Tracker</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { height: 100vh; background: #F5F7F5; color: #041E0F; overflow: hidden; display: flex; flex-direction: column; }
-    #root { height: 100%; display: flex; flex-direction: column; max-width: 430px; margin: 0 auto; width: 100%; background: #F5F7F5; position: relative; box-shadow: 0 0 40px rgba(0,103,71,0.08); }
+    #root { height: 100%; display: flex; flex-direction: column; max-width: 430px; margin: 0 auto; width: 100%; background: #F5F7F5; position: relative; }
     
-    /* PWA Fixes for Safari */
+    /* Safari PWA Layout Fixes */
     .pwa-header {
       padding-top: calc(env(safe-area-inset-top) + 15px);
-      background: #006747;
-      color: #FFFFFF;
-      padding-left: 24px;
-      padding-right: 24px;
-      padding-bottom: 18px;
-      flex-shrink: 0;
+      background: #006747; color: #FFFFFF; padding-left: 24px; padding-right: 24px; padding-bottom: 18px; flex-shrink: 0;
     }
     .pwa-footer {
       padding-bottom: calc(env(safe-area-inset-bottom) + 10px);
-      background: #FFFFFF;
-      border-top: 1px solid #D8E5DC;
-      padding: 15px 24px;
-      flex-shrink: 0;
+      background: #FFFFFF; border-top: 1px solid #D8E5DC; padding: 15px 24px; flex-shrink: 0;
     }
-    .scroll-container { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px; }
-    button { -webkit-tap-highlight-color: transparent; outline: none; cursor: pointer; border: none; transition: all 0.1s; }
+    .scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px; }
+    
+    button { -webkit-tap-highlight-color: transparent; cursor: pointer; border: none; border-radius: 12px; transition: all 0.1s; }
     button:active { opacity: 0.7; transform: scale(0.98); }
     .card { background: #FFFFFF; border: 1px solid #D8E5DC; border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+    .mode-badge { font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 6px; text-transform: uppercase; }
   </style>
 </head>
 <body>
   <div id="root"></div>
   <script>
-    // Window.onload ensures Safari/iOS loads the DOM before React attempts to mount
     window.onload = function() {
-      const { useState, useEffect, useMemo } = React;
+      const { useState, useEffect } = React;
       const ce = React.createElement;
 
-      [span_10](start_span)// FULL PALETTE FROM YOUR SOURCE[span_10](end_span)
-      const PALETTE = {
-        bg: "#F5F7F5", bgAlt: "#FFFFFF", card: "#FAF8F8", 
-        primary: "#006747", secondary: "#FBE122", 
-        text: "#041E0F", mute: "#667A6F", border: "#D8E5DC"
-      };
+      const PALETTE = { green: "#006747", yellow: "#FBE122", bg: "#F5F7F5", text: "#041E0F", mute: "#667A6F", border: "#D8E5DC" };
 
-      [span_11](start_span)// FULL DATABASE FROM YOUR SOURCE[span_11](end_span)
-      const BUILT_IN_DB = [
-        { id: 'j_skyway', name: "Skyway Golf Course", location: "Jersey City, NJ", holes: 9, pars: [4,4,3,4,5,4,3,4,4] },
+      const COURSE_DB = [
         { id: 'nyc_van_cortlandt', name: "Van Cortlandt Park", location: "Bronx, NY", holes: 18, pars: [4,4,3,4,5,4,3,4,4,4,4,3,4,4,5,4,3,4] },
+        { id: 'j_skyway', name: "Skyway Golf Course", location: "Jersey City, NJ", holes: 9, pars: [4,4,3,4,5,4,3,4,4] },
         { id: 'bethpage_black', name: "Bethpage Black", location: "Farmingdale, NY", holes: 18, pars: [4,3,4,5,4,4,4,3,4,4,4,4,5,4,4,4,3,4] },
         { id: 'hackensack_c', name: "Hackensack Golf Club", location: "Emerson, NJ", holes: 18, pars: Array(18).fill(4) }
       ];
@@ -68,43 +54,45 @@
         const [scores, setScores] = useState([]);
         const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem("golf_history_v6")) || []);
 
-        [span_12](start_span)[span_13](start_span)// Restoring all your Game Logic[span_12](end_span)[span_13](end_span)
-        const calculateSkins = (holeIdx) => { /* Original Logic Rebuilt */ };
-        const calculateWolf = () => { /* Original Logic Rebuilt */ };
-
         const startRound = (course) => {
           setActiveCourse(course);
-          setScores(course.pars.map(p => ({ score: p, putts: 2, gir: false, skins: 0, wolfPts: 0 })));
+          setScores(course.pars.map(p => ({ score: p, putts: 2, gir: false, skins: 0, wolfPts: 0, points: 0 })));
           setCurrentHole(0);
           setView("playing");
+        };
+
+        const updateScore = (val) => {
+          const n = [...scores];
+          n[currentHole].score = Math.max(1, n[currentHole].score + val);
+          // Auto-calculate Stableford points if mode is active
+          if (gameMode === "Stableford") {
+            const diff = n[currentHole].score - activeCourse.pars[currentHole];
+            n[currentHole].points = diff <= -2 ? 4 : diff === -1 ? 3 : diff === 0 ? 2 : diff === 1 ? 1 : 0;
+          }
+          setScores(n);
         };
 
         if (view === "setup") {
           return ce("div", { style: { flex: 1, display: "flex", flexDirection: "column" } },
             ce("div", { className: "pwa-header" },
-              ce("div", { style: { fontSize: 10, fontWeight: 800, letterSpacing: "0.1em", opacity: 0.8, marginBottom: 4 } }, "GOLF TRACKER"),
+              ce("div", { style: { fontSize: 10, fontWeight: 800, letterSpacing: "0.1em", opacity: 0.8 } }, "GOLF TRACKER"),
               ce("div", { style: { fontSize: 28, fontWeight: 900 } }, "The Masters")
             ),
-            ce("div", { className: "scroll-container" },
-              ce("div", { style: { fontWeight: 800, fontSize: 12, color: PALETTE.mute, marginBottom: 12 } }, "SELECT GAME MODE"),
-              ce("div", { style: { display: "flex", gap: 8, marginBottom: 24 } },
-                ["Stroke", "Match", "Skins", "Wolf", "Stableford"].map(m => ce("button", {
-                  key: m,
-                  onClick: () => setGameMode(m),
-                  style: { flex: 1, padding: "10px 5px", fontSize: 11, borderRadius: 10, fontWeight: 700, background: gameMode === m ? PALETTE.primary : "#E0EBE4", color: gameMode === m ? "#FFF" : PALETTE.text }
+            ce("div", { className: "scroll-area" },
+              ce("div", { style: { fontWeight: 800, fontSize: 12, color: PALETTE.mute, marginBottom: 12 } }, "GAME MODE"),
+              ce("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 24 } },
+                ["Stroke", "Match", "Skins", "Wolf", "Stableford", "Scramble"].map(m => ce("button", {
+                  key: m, onClick: () => setGameMode(m),
+                  style: { flex: "1 1 30%", padding: "10px", fontSize: 11, fontWeight: 700, background: gameMode === m ? PALETTE.green : "#E8F0EB", color: gameMode === m ? "#FFF" : PALETTE.text }
                 }, m))
               ),
               ce("div", { style: { fontWeight: 800, fontSize: 12, color: PALETTE.mute, marginBottom: 12 } }, "COURSES"),
-              BUILT_IN_DB.map(c => ce("button", {
-                key: c.id,
-                onClick: () => startRound(c),
-                style: { width: "100%", textAlign: "left", padding: "18px", background: "#FFF", border: "1px solid " + PALETTE.border, borderRadius: 16, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }
+              COURSE_DB.map(c => ce("button", {
+                key: c.id, onClick: () => startRound(c),
+                style: { width: "100%", textAlign: "left", padding: "18px", background: "#FFF", border: "1px solid " + PALETTE.border, borderRadius: 16, marginBottom: 10, display: "flex", justifyContent: "space-between" }
               }, 
-                ce("div", null, 
-                  ce("div", { style: { fontWeight: 700, fontSize: 15 } }, c.name),
-                  ce("div", { style: { fontSize: 12, color: PALETTE.mute } }, c.location)
-                ),
-                ce("div", { style: { fontWeight: 800, color: PALETTE.primary } }, c.holes + "H")
+                ce("div", null, ce("div", { style: { fontWeight: 700 } }, c.name), ce("div", { style: { fontSize: 12, color: PALETTE.mute } }, c.location)),
+                ce("div", { style: { color: PALETTE.green, fontWeight: 800 } }, c.holes + "H")
               ))
             )
           );
@@ -113,43 +101,38 @@
         if (view === "playing") {
           const hole = scores[currentHole];
           const par = activeCourse.pars[currentHole];
-          
+          const totalScore = scores.reduce((a, b) => a + b.score, 0);
+
           return ce("div", { style: { flex: 1, display: "flex", flexDirection: "column" } },
             ce("div", { className: "pwa-header", style: { display: "flex", justifyContent: "space-between", alignItems: "flex-end" } },
-              ce("div", null,
-                ce("div", { style: { fontSize: 10, fontWeight: 800, opacity: 0.8 } }, activeCourse.name.toUpperCase()),
-                ce("div", { style: { fontSize: 24, fontWeight: 900 } }, "Hole " + (currentHole + 1))
-              ),
-              ce("div", { style: { textAlign: "right" } },
-                ce("div", { style: { fontSize: 10, fontWeight: 800, opacity: 0.8 } }, gameMode.toUpperCase()),
-                ce("div", { style: { fontSize: 24, fontWeight: 900 } }, "Par " + par)
-              )
+              ce("div", null, ce("div", { style: { fontSize: 10, fontWeight: 800, opacity: 0.8 } }, activeCourse.name.toUpperCase()), ce("div", { style: { fontSize: 24, fontWeight: 900 } }, "Hole " + (currentHole + 1))),
+              ce("div", { style: { textAlign: "right" } }, ce("div", { style: { fontSize: 10, fontWeight: 800, opacity: 0.8 } }, gameMode.toUpperCase()), ce("div", { style: { fontSize: 24, fontWeight: 900 } }, totalScore))
             ),
-            ce("div", { className: "scroll-container", style: { textAlign: "center", paddingTop: 40 } },
-              ce("div", { style: { fontSize: 120, fontWeight: 900, color: PALETTE.text, lineHeight: 1, marginBottom: 20 } }, hole.score),
+            ce("div", { className: "scroll-area", style: { textAlign: "center" } },
+              ce("div", { style: { color: PALETTE.mute, fontWeight: 800, fontSize: 14 } }, "PAR " + par),
+              ce("div", { style: { fontSize: 120, fontWeight: 900, color: PALETTE.text, margin: "10px 0" } }, hole.score),
               ce("div", { style: { display: "flex", justifyContent: "center", gap: 30, marginBottom: 40 } },
-                ce("button", { onClick: () => { const n = [...scores]; n[currentHole].score = Math.max(1, n[currentHole].score - 1); setScores(n); }, style: { width: 80, height: 80, borderRadius: 40, background: "#E8EBE4", fontSize: 40, color: PALETTE.primary } }, "−"),
-                ce("button", { onClick: () => { const n = [...scores]; n[currentHole].score++; setScores(n); }, style: { width: 80, height: 80, borderRadius: 40, background: PALETTE.primary, fontSize: 40, color: "#FFFFFF" } }, "+")
+                ce("button", { onClick: () => updateScore(-1), style: { width: 80, height: 80, borderRadius: 40, background: "#E8F0EB", fontSize: 40, color: PALETTE.green } }, "−"),
+                ce("button", { onClick: () => updateScore(1), style: { width: 80, height: 80, borderRadius: 40, background: PALETTE.green, fontSize: 40, color: "#FFFFFF" } }, "+")
               ),
               ce("div", { className: "card", style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
                 ce("div", { style: { fontWeight: 800, color: PALETTE.mute, fontSize: 13 } }, "PUTTS"),
                 ce("div", { style: { display: "flex", gap: 24, alignItems: "center" } },
-                  ce("button", { onClick: () => { const n = [...scores]; n[currentHole].putts = Math.max(0, n[currentHole].putts - 1); setScores(n); }, style: { fontSize: 32, color: PALETTE.primary, background: "none" } }, "−"),
-                  ce("div", { style: { fontSize: 28, fontWeight: 800, minWidth: 30 } }, hole.putts),
-                  ce("button", { onClick: () => { const n = [...scores]; n[currentHole].putts++; setScores(n); }, style: { fontSize: 32, color: PALETTE.primary, background: "none" } }, "+")
+                  ce("button", { onClick: () => { const n = [...scores]; n[currentHole].putts = Math.max(0, n[currentHole].putts-1); setScores(n); }, style: { fontSize: 30, color: PALETTE.green, background: "none" } }, "−"),
+                  ce("div", { style: { fontSize: 24, fontWeight: 800 } }, hole.putts),
+                  ce("button", { onClick: () => { const n = [...scores]; n[currentHole].putts++; setScores(n); }, style: { fontSize: 30, color: PALETTE.green, background: "none" } }, "+")
                 )
               ),
-              [span_14](start_span)// Restored GIR and Additional Stats Toggle[span_14](end_span)
               ce("button", { 
                 onClick: () => { const n = [...scores]; n[currentHole].gir = !n[currentHole].gir; setScores(n); },
-                style: { width: "100%", padding: "15px", borderRadius: 16, background: hole.gir ? "#E8F5EE" : "#FFF", border: hole.gir ? "2px solid " + PALETTE.primary : "1px solid " + PALETTE.border, color: PALETTE.primary, fontWeight: 800 }
-              }, hole.gir ? "✓ GREEN IN REGULATION" : "MISS THE GREEN?")
+                style: { width: "100%", padding: "16px", borderRadius: 16, background: hole.gir ? "#E8F5EE" : "#FFF", border: hole.gir ? "2px solid "+PALETTE.green : "1px solid "+PALETTE.border, color: PALETTE.green, fontWeight: 800 }
+              }, hole.gir ? "✓ GREEN IN REGULATION" : "MISSED THE GREEN?")
             ),
             ce("div", { className: "pwa-footer", style: { display: "flex", gap: 12 } },
-              ce("button", { onClick: () => currentHole === 0 ? setView("setup") : setCurrentHole(currentHole - 1), style: { flex: 1, padding: "18px", background: "#E8EBE4", color: PALETTE.mute, fontWeight: 700, borderRadius: 14 } }, "BACK"),
+              ce("button", { onClick: () => currentHole === 0 ? setView("setup") : setCurrentHole(currentHole - 1), style: { flex: 1, padding: "18px", background: "#E8F0EB", color: PALETTE.mute, fontWeight: 700 } }, "BACK"),
               ce("button", { 
-                onClick: () => currentHole < activeCourse.holes - 1 ? setCurrentHole(currentHole + 1) : setView("setup"), 
-                style: { flex: 2, padding: "18px", background: PALETTE.primary, color: "#FFFFFF", fontWeight: 800, borderRadius: 14 } 
+                onClick: () => currentHole < activeCourse.holes - 1 ? setCurrentHole(currentHole + 1) : setView("setup"),
+                style: { flex: 2, padding: "18px", background: PALETTE.green, color: "#FFFFFF", fontWeight: 800 }
               }, currentHole < activeCourse.holes - 1 ? "NEXT HOLE" : "FINISH ROUND")
             )
           );
