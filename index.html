@@ -4,6 +4,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Golf Tracker">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#006747">
   <title>Golf Tracker</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -21,6 +26,11 @@
 <body>
 <div id="root"></div>
 <script>
+window.onerror = function(msg, src, line, col, err) {
+  console.error("JS Error:", msg, "line:", line, "col:", col);
+  return false;
+};
+
 var useState = React.useState;
 var ce = React.createElement;
 
@@ -491,7 +501,7 @@ setLoading(true); setError(””); setResults([]); setHasSearched(true);
 var url = “https://nominatim.openstreetmap.org/search”
 + “?q=” + encodeURIComponent(q + “ golf course”)
 + “&format=json&limit=8&addressdetails=1&extratags=1&countrycodes=us”;
-fetch(url, { headers: { “Accept-Language”: “en”, “User-Agent”: “JBR-Golf-Tracker/1.0” } })
+fetch(url, { headers: { “Accept-Language”: “en” } })
 .then(function(res) { return res.json(); })
 .then(function(data) {
 setLoading(false);
@@ -1226,12 +1236,54 @@ setPlayerNames(function(prev) { var n = prev.slice(); n[i] = val; return n; });
 }
 
 var modes = [
-{ id: “stroke”,     label: “Stroke Play”,  desc: “Standard scoring vs par” },
-{ id: “stableford”, label: “Stableford”,   desc: “Points: Eagle+4 Birdie+3 Par+2 Bogey+1” },
-{ id: “skins”,      label: “Skins”,        desc: “Win holes, ties carry the pot” },
-{ id: “scramble”,   label: “Scramble”,     desc: “Best team shot each stroke” },
-{ id: “wolf”,       label: “Wolf”,         desc: “Rotating Wolf picks a partner each hole” }
+{ id: “stroke”,     label: “Stroke Play”,  desc: “Standard scoring vs par”,
+rules: [
+“Count every stroke taken on every hole.”,
+“Your total strokes vs course par is your final score.”,
+“Under par is good - E means even par, +3 means 3 over.”,
+“Most common format for casual and competitive play.”
+]
+},
+{ id: “stableford”, label: “Stableford”,   desc: “Points: Eagle+4 Birdie+3 Par+2 Bogey+1”,
+rules: [
+“Score points on each hole based on how you do vs par.”,
+“Eagle or better = 4 pts. Birdie = 3 pts. Par = 2 pts.”,
+“Bogey = 1 pt. Double bogey or worse = 0 pts.”,
+“Highest total points at the end wins. Bad holes hurt less.”
+]
+},
+{ id: “skins”,      label: “Skins”,        desc: “Win holes, ties carry the pot”,
+rules: [
+“Each hole is worth 1 skin. Lowest score on a hole wins it.”,
+“If two or more players tie, the skin carries to the next hole.”,
+“Carryover skins stack - a tied hole can be worth 3, 4, 5 skins.”,
+“Player with the most skins at the end wins.”
+]
+},
+{ id: “scramble”,   label: “Scramble”,     desc: “Best team shot each stroke”,
+rules: [
+“All players tee off. The team picks the best shot.”,
+“Everyone plays from that spot. Repeat until holed.”,
+“Record the team score for each hole vs par.”,
+“Great format for groups of mixed skill levels.”
+]
+},
+{ id: “wolf”,       label: “Wolf”,         desc: “Rotating Wolf picks a partner each hole”,
+rules: [
+“One player is the Wolf each hole, rotating each hole.”,
+“After each tee shot, the Wolf can pick that player as partner.”,
+“Wolf must decide before the next player tees off.”,
+“Wolf can also go Solo after all tee shots - worth double if Wolf wins.”,
+“Wolf + partner vs the other players. Low best ball wins.”,
+“Wolf wins: Wolf and partner each get 2 pts. Others get 0.”,
+“Wolf loses: Other players each get 2 pts.”,
+“Solo Wolf wins: Wolf gets 1 pt per opponent. Solo loss: each opponent gets 2 pts.”
+]
+}
 ];
+
+var si0 = useState(null);
+var showInfo = si0[0]; var setShowInfo = si0[1];
 
 var needsPlayers = gameMode === “skins” || gameMode === “wolf”;
 var needsTeam    = gameMode === “scramble”;
@@ -1269,14 +1321,41 @@ ce(“div”, { style: { flex: 1, overflowY: “auto”, padding: “20px 24px 4
   // Game format
   ce("div", null,
     ce("div", { style: { fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: 10 } }, "Game Format"),
+    // Info modal
+    showInfo ? ce("div", { style: { position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center" } },
+      ce("div", { style: { background: C.bg, borderRadius: "20px 20px 0 0", padding: "24px 24px 40px", width: "100%", maxWidth: 430 } },
+        ce("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 } },
+          ce("div", null,
+            ce("div", { style: { fontSize: 10, color: MG, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 4 } }, "How to Play"),
+            ce("div", { style: { fontSize: 22, fontWeight: 900, color: C.text } }, showInfo.label)
+          ),
+          ce("button", { onClick: function() { setShowInfo(null); }, style: { width: 36, height: 36, borderRadius: 10, background: C.bgAlt, border: "1px solid " + C.cardBorder, color: C.muted, fontSize: 16, cursor: "pointer" } }, "X")
+        ),
+        ce("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+          showInfo.rules.map(function(rule, i) {
+            return ce("div", { key: i, style: { display: "flex", gap: 10, alignItems: "flex-start" } },
+              ce("div", { style: { width: 22, height: 22, borderRadius: "50%", background: "#E8F5EE", border: "1px solid " + MG + "44", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, fontWeight: 800, color: MG, marginTop: 1 } }, i + 1),
+              ce("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.6 } }, rule)
+            );
+          })
+        ),
+        ce("button", { onClick: function() { setGameMode(showInfo.id); setShowInfo(null); }, style: { width: "100%", marginTop: 20, padding: "14px", borderRadius: 12, background: MG, border: "none", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer" } }, "Play " + showInfo.label)
+      )
+    ) : null,
     ce("div", { style: { display: "flex", flexDirection: "column", gap: 6 } },
       modes.map(function(m) {
         var active = gameMode === m.id;
-        return ce("button", { key: m.id, onClick: function() { setGameMode(m.id); },
-          style: { width: "100%", padding: "12px 16px", borderRadius: 12, cursor: "pointer", textAlign: "left", border: "2px solid " + (active ? MG : C.cardBorder), background: active ? "#E8F5EE" : C.card }
-        },
-          ce("div", { style: { fontSize: 14, fontWeight: 700, color: active ? MG : C.text } }, m.label),
-          ce("div", { style: { fontSize: 11, color: C.muted, marginTop: 2 } }, m.desc)
+        return ce("div", { key: m.id, style: { display: "flex", gap: 8, alignItems: "stretch" } },
+          ce("button", { onClick: function() { setGameMode(m.id); },
+            style: { flex: 1, padding: "12px 14px", borderRadius: 12, cursor: "pointer", textAlign: "left", border: "2px solid " + (active ? MG : C.cardBorder), background: active ? "#E8F5EE" : C.card }
+          },
+            ce("div", { style: { fontSize: 14, fontWeight: 700, color: active ? MG : C.text } }, m.label),
+            ce("div", { style: { fontSize: 11, color: C.muted, marginTop: 2 } }, m.desc)
+          ),
+          ce("button", {
+            onClick: function() { setShowInfo(m); },
+            style: { width: 40, flexShrink: 0, borderRadius: 12, background: C.card, border: "2px solid " + (active ? MG + "55" : C.cardBorder), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: active ? MG : C.muted, fontSize: 14, fontWeight: 800 }
+          }, "i")
         );
       })
     )
@@ -1828,7 +1907,12 @@ showHistory ? ce(HistoryLog, { history: history, onClose: function() { setShowHi
 );
 }
 
-ReactDOM.createRoot(document.getElementById(“root”)).render(ce(AppInner, null));
+document.addEventListener(“DOMContentLoaded”, function() {
+var rootEl = document.getElementById(“root”);
+if (rootEl) {
+ReactDOM.createRoot(rootEl).render(ce(AppInner, null));
+}
+});
 </script>
 
 </body>
