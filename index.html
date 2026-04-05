@@ -14,6 +14,9 @@
 
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin="">
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
   <style>
     *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { background: #F5F7F5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #041E0F; touch-action: manipulation; }
@@ -80,6 +83,8 @@
 
 
 var useState = React.useState;
+var useEffect = React.useEffect;
+var useRef = React.useRef;
 var ce = React.createElement;
 
 // ---- PALETTE (Gemini light theme + Masters accents) -------------------------
@@ -110,6 +115,8 @@ var RED = "#C62828";
 var COURSE_KEY      = "jbr:golf_courses_v5";
 var HISTORY_KEY     = "jbr:golf_history_v5";
 var HOME_COURSE_KEY = "jbr:golf_home_v5";
+var GOLF_API_KEY    = "O6UY6LF3DR5T2GR27FKVBWXJAA";
+var GOLF_API_BASE   = "https://api.golfcourseapi.com/v1";
 
 function loadJSON(key, fallback) {
   try { var v = JSON.parse(localStorage.getItem(key)); return (v !== null && v !== undefined) ? v : fallback; }
@@ -211,27 +218,112 @@ function emptyHole(par) {
 
 // ---- COURSE MAP (OSM iframe) ------------------------------------------------
 function CourseMap(props) {
-  var lat = props.lat;
-  var lng = props.lng;
-  var name = props.name;
+  var lat    = props.lat;
+  var lng    = props.lng;
+  var name   = props.name;
+  var height = props.height || 200;
+
+  var mapRef     = useRef(null);
+  var leafletRef = useRef(null);
+
+  useEffect(function() {
+    if (!lat || !lng || typeof L === "undefined") return;
+    var container = mapRef.current;
+    if (!container) return;
+
+    if (leafletRef.current) {
+      leafletRef.current.remove();
+      leafletRef.current = null;
+    }
+
+    var timer = setTimeout(function() {
+      if (!mapRef.current) return;
+
+      var map = L.map(mapRef.current, {
+        center: [lat, lng],
+        zoom: 15,
+        zoomControl: false,
+        attributionControl: false,
+        dragging: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        touchZoom: false
+      });
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19
+      }).addTo(map);
+
+      // Marker using single-quoted inner HTML to avoid quote collision
+      var markerHtml = '<div style="width:32px;height:32px;background:#006747;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;font-size:16px;">F</div>';
+      var icon = L.divIcon({
+        className: "",
+        html: markerHtml,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+
+      L.marker([lat, lng], { icon: icon }).addTo(map);
+      leafletRef.current = map;
+    }, 120);
+
+    return function() {
+      clearTimeout(timer);
+      if (leafletRef.current) {
+        leafletRef.current.remove();
+        leafletRef.current = null;
+      }
+    };
+  }, [lat, lng]);
+
   if (!lat || !lng) return null;
-  var zoom = 15;
-  var src = "https://www.openstreetmap.org/export/embed.html?bbox="
-    + (lng - 0.012) + "," + (lat - 0.008) + ","
-    + (lng + 0.012) + "," + (lat + 0.008)
-    + "&layer=mapnik&marker=" + lat + "," + lng;
-  return ce("div", { style: { width: "100%", height: 180, borderRadius: 12, overflow: "hidden", border: "1px solid " + C.cardBorder, marginTop: 12 } },
-    ce("iframe", {
-      src: src,
-      width: "100%",
-      height: "180",
-      frameBorder: "0",
-      scrolling: "no",
-      title: name + " map",
-      style: { display: "block", pointerEvents: "none" }
-    })
+
+  return ce("div", { style: { position: "relative", width: "100%", borderRadius: 12, overflow: "hidden", border: "1px solid " + C.cardBorder, marginTop: 12 } },
+    ce("div", { ref: mapRef, style: { width: "100%", height: height + "px" } }),
+    ce("div", { style: { position: "absolute", bottom: 0, left: 0, right: 0, padding: "8px 12px", background: "linear-gradient(transparent, rgba(0,0,0,0.55))", pointerEvents: "none" } },
+      ce("div", { style: { fontSize: 12, fontWeight: 700, color: "#fff" } }, name)
+    ),
+    ce("div", { style: { position: "absolute", bottom: 4, right: 6, fontSize: 9, color: "rgba(255,255,255,0.55)", pointerEvents: "none" } }, "OSM")
   );
 }
+
+
+
+// ---- SCORECARD IMAGE --------------------------------------------------------
+// Shows a course image (scorecard map) when available, falls back to Leaflet map
+function CourseDetail(props) {
+  var course  = props.course;
+  var height  = props.height || 200;
+  var showMap0 = React.useState(false);
+  var showMap  = showMap0[0]; var setShowMap = showMap0[1];
+
+  var hasImage = course.imageUrl && course.imageUrl.length > 0;
+  var hasCoords = course.lat && course.lng;
+
+  // If no image and no coords, show nothing
+  if (!hasImage && !hasCoords) return null;
+
+  // If has image, show it with optional map toggle
+  if (hasImage) {
+    return ce("div", { style: { marginTop: 12 } },
+      ce("div", { style: { position: "relative", width: "100%", borderRadius: 12, overflow: "hidden", border: "1px solid " + C.cardBorder } },
+        ce("img", { src: course.imageUrl, alt: course.name + " scorecard map", style: { width: "100%", height: height + "px", objectFit: "cover", display: "block" } }),
+        ce("div", { style: { position: "absolute", bottom: 0, left: 0, right: 0, padding: "8px 12px", background: "linear-gradient(transparent, rgba(0,0,0,0.55))", display: "flex", justifyContent: "space-between", alignItems: "flex-end" } },
+          ce("div", { style: { fontSize: 12, fontWeight: 700, color: "#fff" } }, course.name),
+          hasCoords ? ce("button", {
+            onClick: function() { setShowMap(function(v) { return !v; }); },
+            style: { fontSize: 10, fontWeight: 700, color: "#fff", background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 6, padding: "3px 8px", cursor: "pointer" }
+          }, showMap ? "Map" : "Map") : null
+        )
+      ),
+      showMap && hasCoords ? ce(CourseMap, { lat: course.lat, lng: course.lng, name: course.name, height: 160 }) : null
+    );
+  }
+
+  // No image - just the Leaflet map
+  return ce(CourseMap, { lat: course.lat, lng: course.lng, name: course.name, height: height });
+}
+
 
 // ---- PAR ROW ----------------------------------------------------------------
 function ParRow(props) {
@@ -303,7 +395,7 @@ function CourseEditor(props) {
     ),
     ce("div", { style: { padding: "20px 24px 40px", display: "flex", flexDirection: "column", gap: 20 } },
       // Map preview if coordinates available
-      (initial && initial.lat && showMap) ? ce(CourseMap, { lat: initial.lat, lng: initial.lng, name: initial.name }) : null,
+      (initial && initial.lat && showMap) ? ce(CourseDetail, { course: initial, height: 180 }) : null,
       // Name
       ce("div", null,
         ce("div", { style: { fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8, fontWeight: 600 } }, "Course Name"),
@@ -431,7 +523,7 @@ function MyCourses(props) {
             ),
             // Map embed
             mapShown && course.lat ? ce("div", { style: { padding: "0 16px 14px" } },
-              ce(CourseMap, { lat: course.lat, lng: course.lng, name: course.name })
+              ce(CourseDetail, { course: course, height: 180 })
             ) : null,
             // Confirm delete
             isConfirm ? ce("div", { style: { borderTop: "1px solid " + C.cardBorder, padding: "10px 16px", background: "#FFF5F5", display: "flex", gap: 8, alignItems: "center" } },
@@ -541,40 +633,154 @@ function CourseSearch(props) {
   var es = useState(""); var error = es[0]; var setError = es[1];
   var ss = useState(false); var hasSearched = ss[0]; var setHasSearched = ss[1];
   var ms = useState(null); var previewMap = ms[0]; var setPreviewMap = ms[1];
+  var ld0 = useState(null); var loadingDetailId = ld0[0]; var setLoadingDetailId = ld0[1];
+
+  function extractPars(tees) {
+    // Prefer male tees, fall back to female. Pick first tee with full hole data.
+    var groups = [];
+    if (tees && tees.male && tees.male.length) groups = tees.male;
+    else if (tees && tees.female && tees.female.length) groups = tees.female;
+    for (var t = 0; t < groups.length; t++) {
+      var holes = groups[t].holes;
+      if (holes && holes.length >= 9) {
+        var pars = holes.map(function(h) { return parseInt(h.par, 10) || 4; });
+        if (pars.every(function(p) { return p >= 3 && p <= 5; })) return pars;
+      }
+    }
+    return null;
+  }
+
+  function mapAPIResult(c) {
+    var loc  = c.location || {};
+    // Address: prefer full address string, fall back to city+state
+    var addr = loc.address || [loc.city, loc.state].filter(Boolean).join(", ");
+    // Extract pars from tees included in search response
+    var pars = extractPars(c.tees);
+    // Get hole count from tee data
+    var holes = 18;
+    var teeArr = (c.tees && c.tees.male && c.tees.male.length) ? c.tees.male :
+                 (c.tees && c.tees.female && c.tees.female.length) ? c.tees.female : [];
+    if (teeArr.length && teeArr[0].number_of_holes) holes = teeArr[0].number_of_holes;
+    else if (pars) holes = pars.length;
+    return {
+      apiId:   c.id,
+      name:    c.club_name || c.course_name || "Unknown",
+      address: addr,
+      lat:     parseFloat(loc.latitude)  || null,
+      lng:     parseFloat(loc.longitude) || null,
+      holes:   holes,
+      pars:    pars,
+      par:     pars ? pars.reduce(function(a, b) { return a + b; }, 0) : null,
+      fromAPI: true,
+      hasPars: !!pars
+    };
+  }
 
   function doSearch() {
     var q = query.trim();
     if (!q) return;
     setLoading(true); setError(""); setResults([]); setHasSearched(true);
-    var url = "https://nominatim.openstreetmap.org/search"
-      + "?q=" + encodeURIComponent(q + " golf course")
-      + "&format=json&limit=8&addressdetails=1&extratags=1&countrycodes=us";
-    fetch(url, { headers: { "Accept-Language": "en" } })
-      .then(function(res) { return res.json(); })
+
+    fetch(GOLF_API_BASE + "/search?search_query=" + encodeURIComponent(q),
+      { headers: { "Authorization": "Key " + GOLF_API_KEY } })
+      .then(function(res) {
+        if (!res.ok) throw new Error("API error " + res.status);
+        return res.json();
+      })
       .then(function(data) {
         setLoading(false);
-        var filtered = data.filter(function(item) {
-          var name = (item.display_name || "").toLowerCase();
-          var type = (item.type || "").toLowerCase();
-          var tags = item.extratags || {};
-          return name.indexOf("golf") !== -1 || type === "golf_course" || (tags.sport && tags.sport.indexOf("golf") !== -1);
-        });
-        if (filtered.length === 0 && data.length > 0) filtered = data.slice(0, 5);
-        setResults(filtered);
+        var courses = (data.courses || []).slice(0, 8);
+        if (courses.length === 0) {
+          setHasSearched(true);
+          setResults([]);
+          return;
+        }
+        setResults(courses.map(mapAPIResult));
       })
-      .catch(function() { setLoading(false); setError("Search failed. Check your connection."); });
+      .catch(function(err) {
+        // Fall back to OSM if API fails
+        var url = "https://nominatim.openstreetmap.org/search"
+          + "?q=" + encodeURIComponent(q + " golf course")
+          + "&format=json&limit=8&addressdetails=1&extratags=1&countrycodes=us";
+        fetch(url, { headers: { "Accept-Language": "en" } })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            setLoading(false);
+            var filtered = data.filter(function(item) {
+              var name = (item.display_name || "").toLowerCase();
+              return name.indexOf("golf") !== -1 || (item.type || "") === "golf_course";
+            });
+            if (!filtered.length && data.length) filtered = data.slice(0, 5);
+            setResults(filtered.map(function(item) {
+              var addr = item.address || {};
+              var parts = [];
+              if (addr.road) parts.push(addr.road);
+              if (addr.city || addr.town) parts.push(addr.city || addr.town);
+              if (addr.state) parts.push(addr.state);
+              return {
+                apiId:   null,
+                name:    item.name || item.display_name.split(",")[0],
+                address: parts.join(", ") || item.display_name.split(",").slice(0,2).join(","),
+                lat:     parseFloat(item.lat) || null,
+                lng:     parseFloat(item.lon) || null,
+                holes:   18, pars: null, par: null, fromAPI: false, hasPars: false
+              };
+            }));
+          })
+          .catch(function() { setLoading(false); setError("Search failed. Check your connection."); });
+      });
+  }
+
+  // Fetch full course detail (pars) when user taps a result
+  function fetchAndSelect(result, onSelect) {
+    // OSM fallback result - no API id, go to CourseEditor for manual par entry
+    if (!result.apiId) {
+      onSelect({ name: result.name, address: result.address, lat: result.lat, lng: result.lng });
+      return;
+    }
+    // API result already has pars from search response - use them directly
+    if (result.hasPars) {
+      onSelect({
+        name:    result.name,
+        address: result.address,
+        lat:     result.lat,
+        lng:     result.lng,
+        pars:    result.pars,
+        holes:   result.holes,
+        par:     result.par,
+        fromDB:  true
+      });
+      return;
+    }
+    // API result but no tees in search response - do second call to /courses/{id}
+    fetch(GOLF_API_BASE + "/courses/" + result.apiId,
+      { headers: { "Authorization": "Key " + GOLF_API_KEY } })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        var pars   = extractPars(data.tees);
+        var teeArr = (data.tees && data.tees.male && data.tees.male.length) ? data.tees.male :
+                     (data.tees && data.tees.female && data.tees.female.length) ? data.tees.female : [];
+        var holes  = (teeArr.length && teeArr[0].number_of_holes) ? teeArr[0].number_of_holes :
+                     (pars ? pars.length : 18);
+        onSelect({
+          name:    result.name,
+          address: result.address,
+          lat:     result.lat,
+          lng:     result.lng,
+          pars:    pars,
+          holes:   holes,
+          par:     pars ? pars.reduce(function(a, b) { return a + b; }, 0) : null,
+          fromDB:  !!pars
+        });
+      })
+      .catch(function() {
+        onSelect({ name: result.name, address: result.address, lat: result.lat, lng: result.lng });
+      });
   }
 
   function handleKey(e) { if (e.key === "Enter" || e.keyCode === 13) doSearch(); }
 
-  function getAddr(item) {
-    var addr = item.address || {};
-    var parts = [];
-    if (addr.road) parts.push(addr.road);
-    if (addr.city || addr.town || addr.village) parts.push(addr.city || addr.town || addr.village);
-    if (addr.state) parts.push(addr.state);
-    return parts.join(", ") || item.display_name.split(",").slice(0, 2).join(",");
-  }
+
 
   return ce("div", { style: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: C.bg } },
     ce("div", { style: { background: C.header, paddingTop: "calc(20px + var(--sat))", paddingRight: "24px", paddingBottom: "18px", paddingLeft: "24px" } },
@@ -584,7 +790,7 @@ function CourseSearch(props) {
       ce("div", { style: { display: "flex", gap: 8 } },
         ce("input", {
           value: query, onChange: function(e) { setQuery(e.target.value); }, onKeyDown: handleKey,
-          placeholder: "e.g. Bethpage, Van Cortlandt...", autoFocus: true,
+          placeholder: "e.g. Bethpage, Van Cortlandt...",
           style: { flex: 1, padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.25)", color: "#fff", fontSize: 14, outline: "none" }
         }),
         ce("button", {
@@ -600,13 +806,12 @@ function CourseSearch(props) {
         ce("button", { onClick: doSearch, style: { padding: "10px 20px", borderRadius: 10, background: MG, border: "none", color: "#fff", fontSize: 12, fontWeight: 700 } }, "Retry")
       ) :
       results.length > 0 ? ce("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
-        ce("div", { style: { fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 } }, results.length + " result" + (results.length !== 1 ? "s" : "") + " from OpenStreetMap"),
-        results.map(function(item, i) {
-          var nm = item.name || item.display_name.split(",")[0];
-          var addr = getAddr(item);
-          var lat = parseFloat(item.lat);
-          var lng = parseFloat(item.lon);
+        ce("div", { style: { fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 } },
+          results.length + " result" + (results.length !== 1 ? "s" : "") + (results[0].fromAPI ? "  -  GolfCourseAPI" : "  -  OpenStreetMap")
+        ),
+        results.map(function(result, i) {
           var showingMap = previewMap === i;
+          var loadingDetail = loadingDetailId === i;
           return ce("div", { key: i, style: { background: C.card, borderRadius: 14, border: "1px solid " + C.cardBorder, overflow: "hidden" } },
             ce("div", { style: { display: "flex", alignItems: "center", padding: "13px 15px", gap: 10 } },
               ce("div", { style: { width: 36, height: 36, borderRadius: 9, background: "#E8F5EE", border: "1px solid " + MG + "33", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } },
@@ -616,15 +821,35 @@ function CourseSearch(props) {
                   ce("path", { d: "M12 6 Q18 9 12 12" })
                 )
               ),
-              ce("div", { onClick: function() { onSelect({ name: nm, address: addr, lat: lat, lng: lng }); }, style: { flex: 1, cursor: "pointer", minWidth: 0 } },
-                ce("div", { style: { fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 } }, nm),
-                ce("div", { style: { fontSize: 11, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, addr)
+              ce("div", { style: { flex: 1, minWidth: 0 } },
+                ce("div", { style: { fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 } }, result.name),
+                ce("div", { style: { fontSize: 11, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, result.address),
+                result.fromAPI ? ce("div", { style: { marginTop: 5, display: "flex", gap: 5, flexWrap: "wrap" } },
+                  ce("div", { style: { fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: "#E8F5EE", color: MG } },
+                    result.hasPars ? "Pars included" : "Pars on Add"
+                  ),
+                  result.holes ? ce("div", { style: { fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: C.bgAlt, color: C.muted } },
+                    result.holes + " holes"
+                  ) : null,
+                  result.par ? ce("div", { style: { fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: C.bgAlt, color: C.muted } },
+                    "Par " + result.par
+                  ) : null
+                ) : ce("div", { style: { marginTop: 5 } },
+                  ce("div", { style: { fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: C.bgAlt, color: C.muted, display: "inline-block" } }, "Set pars manually")
+                )
               ),
-              ce("button", { onClick: function() { setPreviewMap(showingMap ? null : i); }, style: { padding: "5px 10px", borderRadius: 8, background: showingMap ? "#E8F5EE" : C.btnBg, border: "1px solid " + (showingMap ? MG + "55" : C.btnBorder), color: showingMap ? MG : C.muted, fontSize: 10, fontWeight: 600, flexShrink: 0 } }, "Map"),
-              ce("button", { onClick: function() { onSelect({ name: nm, address: addr, lat: lat, lng: lng }); }, style: { padding: "5px 10px", borderRadius: 8, background: MG, border: "none", color: "#fff", fontSize: 10, fontWeight: 700, flexShrink: 0 } }, "Add >")
+              result.lat ? ce("button", { onClick: function() { setPreviewMap(showingMap ? null : i); }, style: { padding: "5px 10px", borderRadius: 8, background: showingMap ? "#E8F5EE" : C.btnBg, border: "1px solid " + (showingMap ? MG + "55" : C.btnBorder), color: showingMap ? MG : C.muted, fontSize: 10, fontWeight: 600, flexShrink: 0 } }, "Map") : null,
+              ce("button", {
+                onClick: function() {
+                  setLoadingDetailId(i);
+                  fetchAndSelect(result, function(r) { setLoadingDetailId(null); onSelect(r); });
+                },
+                disabled: loadingDetail,
+                style: { padding: "5px 10px", borderRadius: 8, background: loadingDetail ? C.btnBg : MG, border: "none", color: loadingDetail ? C.muted : "#fff", fontSize: 10, fontWeight: 700, flexShrink: 0 }
+              }, loadingDetail ? "..." : "Add >")
             ),
-            showingMap ? ce("div", { style: { padding: "0 15px 14px" } },
-              ce(CourseMap, { lat: lat, lng: lng, name: nm })
+            showingMap && result.lat ? ce("div", { style: { padding: "0 15px 14px" } },
+              ce(CourseMap, { lat: result.lat, lng: result.lng, name: result.name })
             ) : null
           );
         })
@@ -1449,7 +1674,7 @@ function PreRoundSetup(props) {
       ),
 
       // Map
-      (course.lat && course.lng) ? ce(CourseMap, { lat: course.lat, lng: course.lng, name: course.name }) : null,
+      (course.lat && course.lng) ? ce(CourseDetail, { course: course, height: 220 }) : null,
 
       // Tee off
       ce("button", { onClick: handleStart,
