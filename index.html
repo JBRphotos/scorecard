@@ -128,6 +128,18 @@ function saveJSON(key, val) {
 
 // ---- COURSE DATABASE --------------------------------------------------------
 var COURSE_DB = [
+  {"id":"nj_skyway","name":"Skyway Golf Course","address":"1 Skyway Dr, Jersey City, NJ","region":"NJ","county":"Hudson","holes":9,"par":36,"pars":[4,3,5,3,4,5,4,5,3,0,0,0,0,0,0,0,0,0],"type":"public","notes":"","lat":40.698,"lng":-74.0641},
+  {"id":"nj_hackensack_cc","name":"Hackensack Country Club","address":"Prospect Ave, Emerson, NJ","region":"NJ","county":"Bergen","holes":18,"par":72,"pars":[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"semi-private","lat":40.9756,"lng":-74.0317},
+  {"id":"nj_rockleigh","name":"Rockleigh Golf Course","address":"15 Paris Ave, Rockleigh, NJ","region":"NJ","county":"Bergen","holes":18,"par":72,"pars":[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":41.0056,"lng":-73.9756},
+  {"id":"nj_darlington","name":"Darlington Golf Course","address":"277 Campgaw Rd, Mahwah, NJ","region":"NJ","county":"Bergen","holes":18,"par":71,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","notes":"Bergen County Parks","lat":41.0897,"lng":-74.1623},
+  {"id":"nj_overpeck","name":"Overpeck County Golf Course","address":"40 Fort Lee Rd, Leonia, NJ","region":"NJ","county":"Bergen","holes":18,"par":71,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.8678,"lng":-74.0181},
+  {"id":"nj_spooky_brook","name":"Spooky Brook Golf Course","address":"Elizabeth Ave, Somerset, NJ","region":"NJ","county":"Somerset","holes":18,"par":71,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.5678,"lng":-74.5001},
+  {"id":"nj_warrenbrook","name":"Warrenbrook Golf Course","address":"500 Warrenville Rd, Warren, NJ","region":"NJ","county":"Somerset","holes":18,"par":71,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.6178,"lng":-74.5256},
+  {"id":"nj_ash_brook","name":"Ash Brook Golf Course","address":"1210 Raritan Rd, Scotch Plains, NJ","region":"NJ","county":"Union","holes":18,"par":72,"pars":[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.6456,"lng":-74.3678},
+  {"id":"nj_galloping_hill","name":"Galloping Hill Golf Course","address":"3 Golf Dr, Kenilworth, NJ","region":"NJ","county":"Union","holes":18,"par":72,"pars":[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.6756,"lng":-74.2878},
+  {"id":"nj_hendricks_field","name":"Hendricks Field Golf Course","address":"431 Clifton Ave, Newark, NJ","region":"NJ","county":"Essex","holes":18,"par":70,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,4,4,4,4,4],"type":"public","lat":40.7456,"lng":-74.1678},
+  {"id":"nj_forest_hill","name":"Forest Hill Field Club","address":"Bloomfield Ave, Bloomfield, NJ","region":"NJ","county":"Essex","holes":9,"par":36,"pars":[4,4,3,5,4,4,3,5,4,0,0,0,0,0,0,0,0,0],"type":"semi-private","lat":40.7956,"lng":-74.2001},
+  {"id":"nj_eagle_ridge","name":"Eagle Ridge Golf Club","address":"2 Augusta Blvd, Lakewood, NJ","region":"NJ","county":"Ocean","holes":18,"par":72,"pars":[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.0956,"lng":-74.2178},
   {"id":"nyc_van_cortlandt","name":"Van Cortlandt Golf Course","address":"Van Cortlandt Park, Bronx, NY","region":"NYC","borough":"Bronx","holes":18,"par":70,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,4,4,4,4,4],"type":"public","notes":"Oldest public golf course in the US (1895)","lat":40.898,"lng":-73.8956},
   {"id":"nyc_pelham","name":"Pelham Golf Course","address":"870 Shore Rd, Bronx, NY","region":"NYC","borough":"Bronx","holes":18,"par":71,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.8683,"lng":-73.8091},
   {"id":"nyc_dyker_beach","name":"Dyker Beach Golf Course","address":"86th St & 7th Ave, Brooklyn, NY","region":"NYC","borough":"Brooklyn","holes":18,"par":67,"pars":[4,4,3,4,4,3,4,4,3,4,4,3,4,4,3,4,4,4],"type":"public","lat":40.6189,"lng":-74.0142},
@@ -140,18 +152,6 @@ var COURSE_DB = [
   {"id":"nyc_south_shore","name":"South Shore Golf Course","address":"200 Huguenot Ave, Staten Island, NY","region":"NYC","borough":"Staten Island","holes":18,"par":72,"pars":[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.5367,"lng":-74.1878},
   {"id":"nyc_bethpage_black","name":"Bethpage Black Course","address":"99 Quaker Meeting House Rd, Farmingdale, NY","region":"NYC Metro","holes":18,"par":71,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","notes":"US Open host","lat":40.7468,"lng":-73.4576},
   {"id":"nyc_bethpage_red","name":"Bethpage Red Course","address":"99 Quaker Meeting House Rd, Farmingdale, NY","region":"NYC Metro","holes":18,"par":70,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,4,4,4,4,4],"type":"public","lat":40.7468,"lng":-73.4576},
-  {"id":"nj_skyway","name":"Skyway Golf Course","address":"1 Skyway Dr, Jersey City, NJ","region":"NJ","county":"Hudson","holes":9,"par":27,"pars":[3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,0,0],"type":"public","notes":"Par 3 course","lat":40.698,"lng":-74.0641},
-  {"id":"nj_hackensack_cc","name":"Hackensack Country Club","address":"Prospect Ave, Emerson, NJ","region":"NJ","county":"Bergen","holes":18,"par":72,"pars":[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"semi-private","lat":40.9756,"lng":-74.0317},
-  {"id":"nj_rockleigh","name":"Rockleigh Golf Course","address":"15 Paris Ave, Rockleigh, NJ","region":"NJ","county":"Bergen","holes":18,"par":72,"pars":[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":41.0056,"lng":-73.9756},
-  {"id":"nj_darlington","name":"Darlington Golf Course","address":"277 Campgaw Rd, Mahwah, NJ","region":"NJ","county":"Bergen","holes":18,"par":71,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","notes":"Bergen County Parks","lat":41.0897,"lng":-74.1623},
-  {"id":"nj_overpeck","name":"Overpeck County Golf Course","address":"40 Fort Lee Rd, Leonia, NJ","region":"NJ","county":"Bergen","holes":18,"par":71,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.8678,"lng":-74.0181},
-  {"id":"nj_spooky_brook","name":"Spooky Brook Golf Course","address":"Elizabeth Ave, Somerset, NJ","region":"NJ","county":"Somerset","holes":18,"par":71,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.5678,"lng":-74.5001},
-  {"id":"nj_warrenbrook","name":"Warrenbrook Golf Course","address":"500 Warrenville Rd, Warren, NJ","region":"NJ","county":"Somerset","holes":18,"par":71,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.6178,"lng":-74.5256},
-  {"id":"nj_ash_brook","name":"Ash Brook Golf Course","address":"1210 Raritan Rd, Scotch Plains, NJ","region":"NJ","county":"Union","holes":18,"par":72,"pars":[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.6456,"lng":-74.3678},
-  {"id":"nj_galloping_hill","name":"Galloping Hill Golf Course","address":"3 Golf Dr, Kenilworth, NJ","region":"NJ","county":"Union","holes":18,"par":72,"pars":[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.6756,"lng":-74.2878},
-  {"id":"nj_hendricks_field","name":"Hendricks Field Golf Course","address":"431 Clifton Ave, Newark, NJ","region":"NJ","county":"Essex","holes":18,"par":70,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,4,4,4,4,4],"type":"public","lat":40.7456,"lng":-74.1678},
-  {"id":"nj_forest_hill","name":"Forest Hill Field Club","address":"Bloomfield Ave, Bloomfield, NJ","region":"NJ","county":"Essex","holes":9,"par":36,"pars":[4,4,3,5,4,4,3,5,4,0,0,0,0,0,0,0,0,0],"type":"semi-private","lat":40.7956,"lng":-74.2001},
-  {"id":"nj_eagle_ridge","name":"Eagle Ridge Golf Club","address":"2 Augusta Blvd, Lakewood, NJ","region":"NJ","county":"Ocean","holes":18,"par":72,"pars":[5,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.0956,"lng":-74.2178},
   {"id":"wc_saxon_woods","name":"Saxon Woods Golf Course","address":"315 Mamaroneck Ave, Scarsdale, NY","region":"Westchester","county":"Westchester","holes":18,"par":71,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.9756,"lng":-73.7856},
   {"id":"wc_sprain_lake","name":"Sprain Lake Golf Course","address":"290 East Grassy Sprain Rd, Yonkers, NY","region":"Westchester","county":"Westchester","holes":18,"par":71,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.9456,"lng":-73.8456},
   {"id":"wc_dunwoodie","name":"Dunwoodie Golf Course","address":"1 Wasylenko Lane, Yonkers, NY","region":"Westchester","county":"Westchester","holes":18,"par":71,"pars":[4,4,3,4,5,3,4,4,3,5,4,3,4,5,4,4,4,4],"type":"public","lat":40.9656,"lng":-73.8756},
@@ -166,7 +166,7 @@ var COURSE_DB = [
   {"id":"wc_doral_arrowwood","name":"Doral Arrowwood","address":"975 Anderson Hill Rd, Rye Brook, NY","region":"Westchester","county":"Westchester","holes":9,"par":34,"pars":[4,4,3,4,4,3,4,4,4,0,0,0,0,0,0,0,0,0],"type":"public","lat":41.0256,"lng":-73.6878}
 ];
 
-var DB_REGIONS = ["NYC", "NYC Metro", "NJ", "Westchester"];
+var DB_REGIONS = ["NJ", "NYC", "NYC Metro", "Westchester"];
 
 // ---- HELPERS ----------------------------------------------------------------
 function calcXP(score, par, holes) {
@@ -1471,6 +1471,7 @@ function PreRoundSetup(props) {
   var course   = props.course;
   var onStart  = props.onStart;
   var onBack   = props.onBack;
+  var onSave   = props.onSave || function() {};
   var history  = props.history || [];
 
   var prPars0  = useState(course.pars ? course.pars.slice() : Array(18).fill(4));
@@ -1677,9 +1678,19 @@ function PreRoundSetup(props) {
       (course.lat && course.lng) ? ce(CourseDetail, { course: course, height: 220 }) : null,
 
       // Tee off
-      ce("button", { onClick: handleStart,
-        style: { width: "100%", padding: "18px", borderRadius: 14, background: MG, border: "none", color: "#fff", fontSize: 16, fontWeight: 900 }
-      }, "Tee Off  " + prHoles + " holes  Par " + prTotalPar)
+      ce("div", { style: { display: "flex", gap: 10 } },
+        ce("button", {
+          onClick: function() {
+            // Save par edits without starting a round
+            var updated = Object.assign({}, course, { holes: prHoles, pars: prPars.slice(), par: prTotalPar });
+            onSave(updated);
+          },
+          style: { flex: 1, padding: "16px", borderRadius: 14, background: C.card, border: "2px solid " + MG, color: MG, fontSize: 14, fontWeight: 800 }
+        }, "Save Pars"),
+        ce("button", { onClick: handleStart,
+          style: { flex: 2, padding: "16px", borderRadius: 14, background: MG, border: "none", color: "#fff", fontSize: 15, fontWeight: 900 }
+        }, "Tee Off  " + prHoles + "H  Par " + prTotalPar)
+      )
     )
   );
 }
@@ -1910,10 +1921,23 @@ function AppInner() {
     return ce(PreRoundSetup, {
       course: preRoundCourse,
       history: history,
+      onSave: function(updatedCourse) {
+        // Persist par edits without starting a round
+        var exists = courses.filter(function(c) { return c.id === updatedCourse.id; });
+        if (exists.length > 0) {
+          persistCourses(courses.map(function(c) { return c.id === updatedCourse.id ? updatedCourse : c; }));
+        } else {
+          persistCourses(courses.concat([updatedCourse]));
+        }
+        setView("setup");
+        setPreRoundCourse(null);
+      },
       onStart: function(updatedCourse, mode, players, teamName) {
         var exists = courses.filter(function(c) { return c.id === updatedCourse.id; });
         if (exists.length > 0) {
           persistCourses(courses.map(function(c) { return c.id === updatedCourse.id ? updatedCourse : c; }));
+        } else {
+          persistCourses(courses.concat([updatedCourse]));
         }
         setGameMode(mode);
         setGamePlayers(players);
