@@ -2010,7 +2010,8 @@ function AppInner() {
 
   // ---- SETUP ----
   if (view === "setup") {
-    var lastRound = history.length > 0 ? history[0] : null;
+    var strokeHistory = history.filter(function(r) { return !r.type || r.type === "stroke"; });
+    var lastRound = strokeHistory.length > 0 ? strokeHistory[0] : null;
     var homePar   = homeCourse && homeCourse.pars ? homeCourse.pars.slice(0, homeCourse.holes).reduce(function(a,b){return a+b;},0) : (homeCourse ? homeCourse.par : null);
 
     return ce("div", { style: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: C.bg } },
@@ -2039,7 +2040,7 @@ function AppInner() {
             padding: "8px 14px", borderRadius: 4, background: "#132318",
             border: "1px solid #1E3A24", color: MYB, fontSize: 11, fontWeight: 700,
             letterSpacing: "0.06em"
-          } }, history.length > 0 ? "History  " + history.length : "History")
+          } }, "History")
         ),
 
         // Last round stats OR welcome state
@@ -2167,8 +2168,8 @@ function AppInner() {
 
           // -- Stat cards: HCP + round count + best round --
           (function() {
-            var totalRounds = history.length;
-            var allDiffs = history.slice(0, 20).map(function(r) {
+            var totalRounds = strokeHistory.length;
+            var allDiffs = history.filter(function(r) { return !r.type || r.type === "stroke"; }).slice(0, 20).map(function(r) {
               return r.holes === 9 ? (r.totalScore - r.totalPar) * 2 : (r.totalScore - r.totalPar);
             });
             var hcpIndex = null;
@@ -2179,17 +2180,17 @@ function AppInner() {
               hcpIndex = Math.round(best.reduce(function(a,b){return a+b;},0) / best.length * 10) / 10;
             }
             var bestRound = null;
-            history.forEach(function(r) {
+            strokeHistory.forEach(function(r) {
               if (bestRound === null || r.scoreDiff < bestRound) bestRound = r.scoreDiff;
             });
             var now = new Date();
-            var thisMonth = history.filter(function(r) {
+            var thisMonth = strokeHistory.filter(function(r) {
               var parts = r.date ? r.date.split("/") : [];
               if (parts.length < 2) return false;
               return parseInt(parts[0],10) === now.getMonth()+1 && parseInt(parts[2],10) === now.getFullYear();
             }).length;
             var avgDiff = totalRounds > 0 ? (function() {
-              var sum = history.reduce(function(a,r){return a + r.scoreDiff;}, 0);
+              var sum = strokeHistory.reduce(function(a,r){return a + r.scoreDiff;}, 0);
               return Math.round(sum / totalRounds * 10) / 10;
             })() : null;
 
