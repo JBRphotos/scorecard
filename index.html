@@ -167,6 +167,7 @@ var COURSE_KEY      = "jbr:golf_courses_v5";
 var HISTORY_KEY     = "jbr:golf_history_v5";
 var HOME_COURSE_KEY = "jbr:golf_home_v5";
 var GOLF_API_KEY    = "O6UY6LF3DR5T2GR27FKVBWXJAA";
+var ROUND_STATE_KEY = "jbr:active_round_v1";
 var GOLF_API_BASE   = "https://api.golfcourseapi.com/v1";
 
 function loadJSON(key, fallback) {
@@ -1896,20 +1897,28 @@ function AppInner() {
   var hco = useState(function() { return loadJSON(HOME_COURSE_KEY, null); });
   var homeCourse = hco[0]; var setHomeCourse = hco[1];
 
-  var vi = useState("setup"); var view = vi[0]; var setView = vi[1];
+  var savedRound = (function() {
+    try { return JSON.parse(localStorage.getItem(ROUND_STATE_KEY)) || null; } catch(e) { return null; }
+  })();
+
+  var vi = useState(savedRound ? savedRound.view : "setup");
+  var view = vi[0]; var setView = vi[1];
   var sv = useState(false); var showSearch = sv[0]; var setShowSearch = sv[1];
   var shs = useState(false); var showHistory = shs[0]; var setShowHistory = shs[1];
 
-  var sc = useState(null); var selectedCourse = sc[0]; var setSelectedCourse = sc[1];
-  var ch = useState(0); var currentHole = ch[0]; var setCurrentHole = ch[1];
-  var sq = useState([]); var scores = sq[0]; var setScores = sq[1];
+  var sc = useState(savedRound ? savedRound.selectedCourse : null);
+  var selectedCourse = sc[0]; var setSelectedCourse = sc[1];
+  var ch = useState(savedRound ? savedRound.currentHole : 0);
+  var currentHole = ch[0]; var setCurrentHole = ch[1];
+  var sq = useState(savedRound ? savedRound.scores : []);
+  var scores = sq[0]; var setScores = sq[1];
   var ec = useState(null); var editingCourse = ec[0]; var setEditingCourse = ec[1];
   var prc = useState(null); var preRoundCourse = prc[0]; var setPreRoundCourse = prc[1];
-  var gm0 = useState("stroke"); var gameMode = gm0[0]; var setGameMode = gm0[1];
+  var gm0 = useState(savedRound ? savedRound.gameMode : "stroke"); var gameMode = gm0[0]; var setGameMode = gm0[1];
   var bsf0 = useState("NJ"); var bookingStateFilter = bsf0[0]; var setBookingStateFilter = bsf0[1];
   var shr0 = useState(null); var selectedHistoryRound = shr0[0]; var setSelectedHistoryRound = shr0[1];
-  var gp0 = useState([]); var gamePlayers = gp0[0]; var setGamePlayers = gp0[1];
-  var gt0 = useState("Our Team"); var gameTeamName = gt0[0]; var setGameTeamName = gt0[1];
+  var gp0 = useState(savedRound ? savedRound.gamePlayers : []); var gamePlayers = gp0[0]; var setGamePlayers = gp0[1];
+  var gt0 = useState(savedRound ? savedRound.gameTeamName : "Our Team"); var gameTeamName = gt0[0]; var setGameTeamName = gt0[1];
 
   var currentPar      = selectedCourse && scores.length > currentHole ? selectedCourse.pars[currentHole] : 4;
   var currentHoleData = scores.length > currentHole ? scores[currentHole] : { score: 4, putts: 2, gir: false };
@@ -1917,7 +1926,32 @@ function AppInner() {
     return a + (b.score - selectedCourse.pars[i]);
   }, 0) : 0;
 
-  function persistCourses(list) { setCourses(list); saveJSON(COURSE_KEY, list); }
+  // Auto-save active round state on every change
+  useEffect(function() {
+    if ((view === "playing" || view === "gameMode") && selectedCourse) {
+      saveRoundState(view, selectedCourse, scores, currentHole, gameMode, gamePlayers, gameTeamName);
+    }
+  }, [view, scores, currentHole, selectedCourse, gameMode]);
+
+    function persistCourses(list) { setCourses(list); saveJSON(COURSE_KEY, list); }
+
+  function saveRoundState(stateView, stateCourse, stateScores, stateHole, stateMode, statePlayers, stateTeam) {
+    try {
+      localStorage.setItem(ROUND_STATE_KEY, JSON.stringify({
+        view:         stateView,
+        selectedCourse: stateCourse,
+        scores:       stateScores,
+        currentHole:  stateHole,
+        gameMode:     stateMode,
+        gamePlayers:  statePlayers,
+        gameTeamName: stateTeam
+      }));
+    } catch(e) {}
+  }
+
+  function clearRoundState() {
+    try { localStorage.removeItem(ROUND_STATE_KEY); } catch(e) {}
+  }
 
   function goToPreRound(course) {
     setPreRoundCourse(course);
@@ -1926,10 +1960,12 @@ function AppInner() {
   function setHomeCourseFn(course) { setHomeCourse(course); saveJSON(HOME_COURSE_KEY, course); }
 
   function startRound(course) {
+    var initScores = course.pars.slice(0, course.holes).map(function(p) { return emptyHole(p); });
     setSelectedCourse(course);
-    setScores(course.pars.slice(0, course.holes).map(function(p) { return emptyHole(p); }));
+    setScores(initScores);
     setCurrentHole(0);
     setView("playing");
+    saveRoundState("playing", course, initScores, 0, "stroke", [], "Our Team");
   }
 
   function updateHole(key, delta) {
@@ -2300,19 +2336,20 @@ function AppInner() {
         } else {
           setSelectedCourse(updatedCourse);
           setView("gameMode");
+          saveRoundState("gameMode", updatedCourse, [], 0, mode, players, teamName);
         }
       },
-      onBack: function() { setView("setup"); setPreRoundCourse(null); }
+      onBack: function() { clearRoundState(); setView("setup"); setPreRoundCourse(null); }
     });
   }
 
 
   // ---- GAME MODES ----
   if (view === "gameMode" && selectedCourse) {
-    function exitGame() { setView("setup"); setSelectedCourse(null); }
+    function exitGame() { clearRoundState(); setView("setup"); setSelectedCourse(null); }
     function completeGame(result) {
       var next = [result].concat(history);
-      setHistory(next); saveJSON(HISTORY_KEY, next); setView("setup"); setSelectedCourse(null);
+      setHistory(next); saveJSON(HISTORY_KEY, next); clearRoundState(); setView("setup"); setSelectedCourse(null);
     }
     if (gameMode === "stableford") {
       return ce(StablefordTracker, { course: selectedCourse, onComplete: completeGame, onExit: exitGame });
@@ -2527,6 +2564,7 @@ function AppInner() {
         ce("button", {
           onClick: function() {
             var round = { courseId: selectedCourse.id, courseName: selectedCourse.name, holes: selectedCourse.holes, pars: selectedCourse.pars.slice(), scoreDiff: finalDiff, totalScore: totalScore, totalPar: totalPar, totalPutts: totalPutts, girCount: girCount, date: new Date().toLocaleDateString(), holeData: scores.slice() };
+            clearRoundState();
             var next = [round].concat(history);
             setHistory(next); saveJSON(HISTORY_KEY, next); setView("setup");
           },
