@@ -83,7 +83,7 @@
   <div id="root"></div>
 
   <div id="fallback">
-    <div style="font-size:28px;font-weight:900;margin-bottom:12px;font-family:'Playfair Display',Georgia,serif;font-style:italic">Golf Tracker</div>
+    <div style="font-size:28px;font-weight:900;margin-bottom:12px;font-family:'Playfair Display',Georgia,serif;font-style:italic">The Ledger</div>
     <div style="font-size:14px;color:rgba(242,232,213,0.7);line-height:1.6;margin-bottom:32px;font-family:'EB Garamond',Georgia,serif">
       Open in <strong style="color:#FBE122">Safari</strong> and tap<br>
       <strong style="color:#FBE122">Share &rarr; Add to Home Screen</strong><br><br>
@@ -1100,6 +1100,353 @@ function CourseSearch(props) {
 // ---- GAME RESULT SCREEN -----------------------------------------------------
 // Shown after the last hole of any non-stroke game mode.
 // Props: result (the full result object), onSave (calls onComplete), onExit
+// ---- GOLF SHARE SCREEN ------------------------------------------------------
+function GolfShareScreen(props) {
+  var result  = props.result;
+  var onClose = props.onClose;
+
+  var videoRef  = useRef(null);
+  var canvasRef = useRef(null);
+  var streamRef = useRef(null);
+
+  var cr0 = useState(false); var camReady  = cr0[0]; var setCamReady  = cr0[1];
+  var ce1 = useState(false); var camError  = ce1[0]; var setCamError  = ce1[1];
+  var cd0 = useState(false); var camDenied = cd0[0]; var setCamDenied = cd0[1];
+  var fa0 = useState(false); var flashAnim = fa0[0]; var setFlashAnim = fa0[1];
+  var pos0 = useState("center"); var position = pos0[0]; var setPosition = pos0[1];
+  var sz0  = useState("medium"); var overlaySize = sz0[0]; var setOverlaySize = sz0[1];
+  var ss0  = useState(false); var showSettings = ss0[0]; var setShowSettings = ss0[1];
+  var uv0  = useState(true);  var uiVisible = uv0[0]; var setUiVisible = uv0[1];
+  var fc0  = useState("environment"); var facing = fc0[0]; var setFacing = fc0[1];
+
+  // Derive display data from result
+  var courseName = result ? (result.courseName || "Golf Round") : "Golf Round";
+  var gameType   = result ? (result.type || "stroke") : "stroke";
+  var typeLabels = { stroke: "Stroke Play", stableford: "Stableford", skins: "Skins", scramble: "Scramble", wolf: "Wolf" };
+  var typeLabel  = typeLabels[gameType] || "Golf";
+
+  function getScoreDisplay() {
+    if (!result) return { line1: "-", line2: "" };
+    if (gameType === "stroke") {
+      var d = result.scoreDiff || 0;
+      return { line1: d === 0 ? "E" : d > 0 ? "+" + d : "" + d, line2: result.totalScore + " strokes  Par " + result.totalPar };
+    }
+    if (gameType === "stableford") {
+      return { line1: (result.totalPts || 0) + " pts", line2: (result.holes || "") + " holes" };
+    }
+    if (gameType === "skins") {
+      var topSk = 0; var topSkName = "-";
+      if (result.players && result.playerSkins) {
+        result.players.forEach(function(n, pi) { if ((result.playerSkins[pi] || 0) > topSk) { topSk = result.playerSkins[pi]; topSkName = n; } });
+      }
+      return { line1: topSkName, line2: topSk + " skins" };
+    }
+    if (gameType === "scramble") {
+      if (result.teamScores && result.teamScores.length > 0) {
+        var sorted = result.teamScores.slice().sort(function(a, b) { return a.diff - b.diff; });
+        var winner = sorted[0];
+        var wd = winner.diff === 0 ? "E" : winner.diff > 0 ? "+" + winner.diff : "" + winner.diff;
+        return { line1: winner.name, line2: wd + "  Par " + winner.totalPar };
+      }
+      var sd = result.diff || 0;
+      return { line1: result.teamName || "Team", line2: sd === 0 ? "E" : sd > 0 ? "+" + sd : "" + sd };
+    }
+    if (gameType === "wolf") {
+      var topW = 0; var topWName = "-";
+      if (result.players && result.pts) {
+        result.players.forEach(function(n, pi) { if ((result.pts[pi] || 0) > topW) { topW = result.pts[pi]; topWName = n; } });
+      }
+      return { line1: topWName, line2: topW + " pts" };
+    }
+    return { line1: "-", line2: "" };
+  }
+
+  var scoreDisplay = getScoreDisplay();
+
+  function startCamera(facingMode) {
+    if (streamRef.current) { streamRef.current.getTracks().forEach(function(t) { t.stop(); }); }
+    setCamReady(false); setCamError(false);
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false })
+      .then(function(stream) {
+        streamRef.current = stream;
+        var vid = videoRef.current;
+        if (!vid) return;
+        vid.srcObject = stream;
+        vid.setAttribute("playsinline", "");
+        vid.setAttribute("muted", "");
+        vid.play().then(function() { setCamReady(true); }).catch(function() { vid.play(); setCamReady(true); });
+      })
+      .catch(function(e) {
+        if (e.name === "NotAllowedError" || e.name === "PermissionDeniedError") { setCamDenied(true); }
+        setCamError(true);
+      });
+  }
+
+  useEffect(function() {
+    startCamera("environment");
+    return function() { if (streamRef.current) { streamRef.current.getTracks().forEach(function(t) { t.stop(); }); } };
+  }, []);
+
+  function flipCamera() {
+    var newFacing = facing === "environment" ? "user" : "environment";
+    setFacing(newFacing);
+    startCamera(newFacing);
+  }
+
+  function toggleUI() { setUiVisible(function(v) { return !v; }); setShowSettings(false); }
+
+  function capturePhoto() {
+    var vid = videoRef.current;
+    var canvas = canvasRef.current;
+    if (!vid || !canvas || !camReady) return;
+
+    setFlashAnim(true);
+    setTimeout(function() { setFlashAnim(false); }, 300);
+
+    var vw = vid.videoWidth  || window.innerWidth;
+    var vh = vid.videoHeight || window.innerHeight;
+    var screenIsPortrait = window.innerHeight > window.innerWidth;
+    var videoIsLandscape = vw > vh;
+    var needsRotation    = screenIsPortrait && videoIsLandscape;
+    var cw = needsRotation ? vh : vw;
+    var ch = needsRotation ? vw : vh;
+
+    canvas.width  = cw;
+    canvas.height = ch;
+    var ctx = canvas.getContext("2d");
+
+    if (needsRotation) {
+      ctx.save();
+      ctx.translate(0, cw);
+      ctx.rotate(-Math.PI / 2);
+      if (facing === "user") { ctx.translate(vh, 0); ctx.scale(-1, 1); }
+      ctx.drawImage(vid, 0, 0, vw, vh);
+      ctx.restore();
+    } else {
+      if (facing === "user") { ctx.translate(cw, 0); ctx.scale(-1, 1); }
+      ctx.drawImage(vid, 0, 0, cw, ch);
+      if (facing === "user") { ctx.setTransform(1, 0, 0, 1, 0, 0); }
+    }
+
+    var sx = cw / window.innerWidth;
+    var sy = ch / window.innerHeight;
+    function px(n) { return n * sx; }
+    function py(n) { return n * sy; }
+
+    ctx.textBaseline = "top";
+
+    // Vignette
+    var vig = ctx.createRadialGradient(cw / 2, ch / 2, ch * 0.18, cw / 2, ch / 2, ch * 0.72);
+    vig.addColorStop(0, "rgba(0,0,0,0)");
+    vig.addColorStop(1, "rgba(0,0,0,0.5)");
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, cw, ch);
+
+    // Green bottom bar for branding
+    ctx.fillStyle = "rgba(0,50,30,0.65)";
+    ctx.fillRect(0, ch - py(90), cw, py(90));
+
+    var sc = overlaySize === "small" ? 0.65 : overlaySize === "large" ? 1.45 : 1.0;
+
+    // Stats position
+    var posMap = {
+      tl:     { x: px(22),        y: py(120) },
+      tr:     { x: cw - px(22),   y: py(120) },
+      bl:     { x: px(22),        y: ch - py(220) },
+      br:     { x: cw - px(22),   y: ch - py(220) },
+      center: { x: cw / 2,        y: ch / 2 - py(50) }
+    };
+    var spos    = posMap[position] || posMap.center;
+    var isRight  = position === "tr" || position === "br";
+    var isCenter = position === "center";
+
+    ctx.shadowColor = "rgba(0,0,0,0.9)";
+    ctx.textAlign = isCenter ? "center" : isRight ? "right" : "left";
+
+    // Date
+    ctx.font = "600 " + px(9 * sc) + "px Helvetica Neue,Arial,sans-serif";
+    ctx.fillStyle = "rgba(212,174,80,0.9)";
+    ctx.shadowBlur = px(6);
+    ctx.fillText(new Date().toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" }).toUpperCase(), spos.x, spos.y);
+
+    // Course name
+    ctx.font = "900 " + px(26 * sc) + "px Helvetica Neue,Arial,sans-serif";
+    ctx.fillStyle = "#fff";
+    ctx.shadowBlur = px(14);
+    ctx.fillText(courseName, spos.x, spos.y + px(9 * sc) + py(6));
+
+    // Score - big
+    ctx.font = "900 " + px(44 * sc) + "px Helvetica Neue,Arial,sans-serif";
+    ctx.fillStyle = "#D4AE50";
+    ctx.shadowBlur = px(16);
+    ctx.fillText(scoreDisplay.line1, spos.x, spos.y + px(9 * sc) + py(6) + px(26 * sc) + py(8));
+
+    // Score sub
+    if (scoreDisplay.line2) {
+      ctx.font = "600 " + px(11 * sc) + "px Helvetica Neue,Arial,sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.shadowBlur = px(6);
+      ctx.fillText(scoreDisplay.line2, spos.x, spos.y + px(9 * sc) + py(6) + px(26 * sc) + py(8) + px(44 * sc) + py(6));
+    }
+
+    // Branding bottom bar
+    ctx.textAlign = "left";
+    ctx.shadowBlur = px(8);
+    ctx.font = "900 " + px(16) + "px Helvetica Neue,Arial,sans-serif";
+    ctx.fillStyle = "#fff";
+    ctx.fillText("The Ledger", px(20), ch - py(72));
+    ctx.font = "600 " + px(9) + "px Helvetica Neue,Arial,sans-serif";
+    ctx.fillStyle = "rgba(212,174,80,0.8)";
+    ctx.fillText(typeLabel.toUpperCase() + "  JBR", px(20), ch - py(52));
+    ctx.shadowBlur = 0;
+
+    // Game type pill top-right
+    var pillW = px(80); var pillH = py(24); var pillX = cw - px(20) - pillW; var pillY = py(56);
+    ctx.fillStyle = "rgba(0,103,71,0.75)";
+    ctx.beginPath();
+    ctx.moveTo(pillX + py(8), pillY);
+    ctx.lineTo(pillX + pillW - py(8), pillY);
+    ctx.quadraticCurveTo(pillX + pillW, pillY, pillX + pillW, pillY + py(8));
+    ctx.lineTo(pillX + pillW, pillY + pillH - py(8));
+    ctx.quadraticCurveTo(pillX + pillW, pillY + pillH, pillX + pillW - py(8), pillY + pillH);
+    ctx.lineTo(pillX + py(8), pillY + pillH);
+    ctx.quadraticCurveTo(pillX, pillY + pillH, pillX, pillY + pillH - py(8));
+    ctx.lineTo(pillX, pillY + py(8));
+    ctx.quadraticCurveTo(pillX, pillY, pillX + py(8), pillY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.font = "700 " + px(9) + "px Helvetica Neue,Arial,sans-serif";
+    ctx.fillStyle = "#D4AE50";
+    ctx.textAlign = "center";
+    ctx.fillText(typeLabel.toUpperCase(), pillX + pillW / 2, pillY + py(7));
+
+    canvas.toBlob(function(blob) {
+      if (!blob) return;
+      var file = new File([blob], "golf-tracker.jpg", { type: "image/jpeg" });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: "The Ledger" }).catch(function() {});
+      } else {
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "golf-tracker.jpg";
+        a.click();
+      }
+      startCamera(facing);
+    }, "image/jpeg", 0.92);
+  }
+
+  var sc = overlaySize === "small" ? 0.65 : overlaySize === "large" ? 1.45 : 1.0;
+  var posStyle = {
+    tl:     { top: 120, left: 20, right: "auto", bottom: "auto", transform: "none" },
+    tr:     { top: 120, right: 20, left: "auto", bottom: "auto", transform: "none" },
+    bl:     { bottom: 120, left: 20, right: "auto", top: "auto", transform: "none" },
+    br:     { bottom: 120, right: 20, left: "auto", top: "auto", transform: "none" },
+    center: { top: "50%", left: "50%", right: "auto", bottom: "auto", transform: "translate(-50%,-50%)" }
+  }[position];
+  var textAlign = (position === "tl" || position === "bl") ? "left" : (position === "tr" || position === "br") ? "right" : "center";
+  var flexJust  = textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start";
+
+  return ce("div", { onClick: toggleUI, style: { position: "fixed", inset: 0, zIndex: 600, background: "#000", fontFamily: "-apple-system,sans-serif", cursor: "pointer" } },
+
+    // Video
+    ce("video", { ref: videoRef, playsInline: true, muted: true, autoPlay: true,
+      style: { position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", objectFit: "cover", zIndex: 0, opacity: camReady ? 1 : 0, transition: "opacity 0.3s", transform: facing === "user" ? "scaleX(-1)" : "none" }
+    }),
+
+    // Loading
+    !camReady && !camError ? ce("div", { style: { position: "absolute", inset: 0, background: "#0A1A10", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 } },
+      ce("div", { style: { fontSize: 11, color: "#444", letterSpacing: "0.12em" } }, "LOADING CAMERA...")
+    ) : null,
+
+    // Camera error
+    camError ? ce("div", { style: { position: "absolute", inset: 0, background: "#0A1A10", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, zIndex: 4, padding: "0 40px", textAlign: "center" } },
+      camDenied
+        ? ce("div", null,
+            ce("div", { style: { fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 } }, "Camera access denied. Go to Settings > Safari > Camera and allow access."),
+            ce("button", { onClick: function(e) { e.stopPropagation(); setCamError(false); setCamDenied(false); startCamera(facing); }, style: { marginTop: 14, padding: "10px 24px", borderRadius: 10, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" } }, "Retry")
+          )
+        : ce("button", { onClick: function(e) { e.stopPropagation(); setCamError(false); startCamera(facing); }, style: { padding: "10px 24px", borderRadius: 10, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" } }, "Enable Camera")
+    ) : null,
+
+    // Flash
+    flashAnim ? ce("div", { style: { position: "absolute", inset: 0, background: "white", opacity: 0.55, zIndex: 20, pointerEvents: "none" } }) : null,
+
+    // Vignette overlay
+    ce("div", { style: { position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.45) 100%)", pointerEvents: "none" } }),
+
+    // Stats overlay
+    ce("div", { style: Object.assign({ position: "absolute", zIndex: 5, maxWidth: 280 }, posStyle) },
+      ce("div", { style: { fontSize: 9 * sc, color: "rgba(212,174,80,0.85)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 5 * sc, textShadow: "0 1px 6px rgba(0,0,0,0.9)" } },
+        new Date().toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })
+      ),
+      ce("div", { style: { fontSize: 24 * sc, fontWeight: 900, color: "#fff", lineHeight: 1, marginBottom: 6 * sc, textShadow: "0 2px 12px rgba(0,0,0,0.9)", textAlign: textAlign } }, courseName),
+      ce("div", { style: { fontSize: 40 * sc, fontWeight: 900, color: "#D4AE50", lineHeight: 1, textShadow: "0 2px 14px rgba(0,0,0,0.9)", textAlign: textAlign } }, scoreDisplay.line1),
+      scoreDisplay.line2 ? ce("div", { style: { fontSize: 10 * sc, color: "rgba(255,255,255,0.65)", marginTop: 4 * sc, textShadow: "0 1px 4px rgba(0,0,0,0.8)", textAlign: textAlign } }, scoreDisplay.line2) : null
+    ),
+
+    // Game type pill top-right
+    ce("div", { style: { position: "absolute", top: 56, right: uiVisible ? 112 : 16, zIndex: 6, background: "rgba(0,103,71,0.8)", borderRadius: 20, padding: "5px 12px", border: "1px solid rgba(212,174,80,0.4)" } },
+      ce("div", { style: { fontSize: 9, fontWeight: 800, color: "#D4AE50", textTransform: "uppercase", letterSpacing: "0.1em" } }, typeLabel)
+    ),
+
+    // Branding bottom
+    ce("div", { style: { position: "absolute", bottom: "calc(100px + env(safe-area-inset-bottom))", left: 20, zIndex: 6 } },
+      ce("div", { style: { fontSize: 15, fontWeight: 900, color: "#fff", textShadow: "0 1px 8px rgba(0,0,0,0.9)" } }, "The Ledger"),
+      ce("div", { style: { fontSize: 9, color: "rgba(212,174,80,0.7)", letterSpacing: "0.1em", marginTop: 2 } }, "JBR")
+    ),
+
+    // Controls top-right
+    uiVisible ? ce("div", { style: { position: "absolute", top: 52, right: 16, display: "flex", gap: 8, zIndex: 10 } },
+      // Flip
+      ce("button", { onClick: function(e) { e.stopPropagation(); flipCamera(); }, style: { width: 36, height: 36, borderRadius: 10, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.85)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" } },
+        ce("svg", { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" },
+          ce("path", { d: "M20 7h-3a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" }),
+          ce("circle", { cx: "12", cy: "12", r: "3" })
+        )
+      ),
+      // Settings
+      ce("button", { onClick: function(e) { e.stopPropagation(); setShowSettings(function(v) { return !v; }); }, style: { width: 36, height: 36, borderRadius: 10, background: showSettings ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.85)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" } },
+        ce("svg", { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" },
+          ce("circle", { cx: "12", cy: "12", r: "3" }),
+          ce("path", { d: "M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" })
+        )
+      ),
+      // Close
+      ce("button", { onClick: function(e) { e.stopPropagation(); onClose(); }, style: { width: 36, height: 36, borderRadius: 10, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", fontSize: 16, cursor: "pointer" } }, "X")
+    ) : null,
+
+    // Settings panel
+    uiVisible && showSettings ? ce("div", { onClick: function(e) { e.stopPropagation(); }, style: { position: "absolute", top: 100, right: 16, zIndex: 10, background: "rgba(0,0,0,0.8)", borderRadius: 14, padding: "14px 16px", border: "1px solid rgba(255,255,255,0.15)", minWidth: 160 } },
+      ce("div", { style: { fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 } }, "Position"),
+      ce("div", { style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 5, marginBottom: 14, width: 72 } },
+        ["tl","","tr","","center","","bl","","br"].map(function(pos, i) {
+          if (pos === "") return ce("div", { key: i });
+          var active = position === pos;
+          return ce("div", { key: pos, onClick: function() { setPosition(pos); }, style: { width: 20, height: 20, borderRadius: 5, cursor: "pointer", background: active ? "#D4AE50" : "rgba(255,255,255,0.18)", border: "1px solid " + (active ? "#D4AE50" : "rgba(255,255,255,0.15)") } });
+        })
+      ),
+      ce("div", { style: { fontSize: 9, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 } }, "Size"),
+      ce("div", { style: { display: "flex", gap: 6 } },
+        [["S","small"],["M","medium"],["L","large"]].map(function(pair) {
+          var active = overlaySize === pair[1];
+          return ce("button", { key: pair[1], onClick: function() { setOverlaySize(pair[1]); }, style: { width: 32, height: 32, borderRadius: 7, cursor: "pointer", fontSize: 11, fontWeight: 700, background: active ? "#D4AE50" : "rgba(255,255,255,0.15)", color: active ? "#000" : "rgba(255,255,255,0.6)", border: "1px solid " + (active ? "#D4AE50" : "rgba(255,255,255,0.15)") } }, pair[0]);
+        })
+      )
+    ) : null,
+
+    // Shutter button
+    uiVisible ? ce("div", { onClick: function(e) { e.stopPropagation(); }, style: { position: "absolute", bottom: "calc(32px + env(safe-area-inset-bottom))", left: 0, right: 0, zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 } },
+      ce("button", { onClick: capturePhoto, style: { width: 72, height: 72, borderRadius: "50%", background: "#fff", border: "4px solid rgba(255,255,255,0.4)", cursor: "pointer", boxShadow: "0 4px 20px rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center" } },
+        ce("div", { style: { width: 56, height: 56, borderRadius: "50%", background: "#fff", border: "2px solid #ccc" } })
+      ),
+      ce("div", { style: { fontSize: 10, color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em" } }, "Tap photo to capture  -  tap screen to hide UI")
+    ) : null,
+
+    ce("canvas", { ref: canvasRef, style: { display: "none" } })
+  );
+}
+
+
 function GameResultScreen(props) {
   var result  = props.result;
   var onSave  = props.onSave;
@@ -1136,6 +1483,7 @@ function GameResultScreen(props) {
   }
 
   var winner = getWinner();
+  var sh0 = useState(false); var showShare = sh0[0]; var setShowShare = sh0[1];
 
   function renderStandings() {
     if (type === "stableford") {
@@ -1227,6 +1575,10 @@ function GameResultScreen(props) {
 
   var typeLabels = { stableford: "Stableford", skins: "Skins", scramble: "Scramble", wolf: "Wolf" };
 
+  if (showShare) {
+    return ce(GolfShareScreen, { result: result, onClose: function() { setShowShare(false); } });
+  }
+
   return ce("div", { style: { flex: 1, display: "flex", flexDirection: "column", background: C.bg } },
     // Header
     ce("div", { style: { background: C.header, paddingTop: "calc(20px + var(--sat))", paddingRight: "24px", paddingBottom: "20px", paddingLeft: "24px", flexShrink: 0 } },
@@ -1236,7 +1588,10 @@ function GameResultScreen(props) {
           ce("div", { style: { fontSize: 26, fontWeight: 900, color: "#F2E8D5" } }, "Round Complete"),
           ce("div", { style: { fontSize: 12, color: "rgba(242,232,213,0.6)", marginTop: 3 } }, result.courseName + "  " + result.date)
         ),
-        ce("button", { onClick: onExit, style: { fontSize: 11, color: "rgba(242,232,213,0.5)", background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer" } }, "Discard")
+        ce("div", { style: { display: "flex", gap: 8 } },
+          ce("button", { onClick: function() { setShowShare(true); }, style: { fontSize: 11, color: "#D4AE50", background: "rgba(212,174,80,0.15)", border: "1px solid rgba(212,174,80,0.3)", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontWeight: 700 } }, "Share"),
+          ce("button", { onClick: onExit, style: { fontSize: 11, color: "rgba(242,232,213,0.5)", background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer" } }, "Discard")
+        )
       ),
       // Winner hero
       ce("div", { style: { background: "rgba(255,255,255,0.08)", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" } },
@@ -2323,6 +2678,7 @@ function AppInner() {
   var view = vi[0]; var setView = vi[1];
   var sv = useState(false); var showSearch = sv[0]; var setShowSearch = sv[1];
   var shs = useState(false); var showHistory = shs[0]; var setShowHistory = shs[1];
+  var sss = useState(false); var showSummaryShare = sss[0]; var setShowSummaryShare = sss[1];
 
   var sc = useState(savedRound ? savedRound.selectedCourse : null);
   var selectedCourse = sc[0]; var setSelectedCourse = sc[1];
@@ -2923,6 +3279,16 @@ function AppInner() {
   }
 
   // ---- SUMMARY ----
+  if (showSummaryShare) {
+    var shareResult = { type: "stroke", courseName: selectedCourse ? selectedCourse.name : "Round",
+      scoreDiff: scores.reduce(function(a,b){return a+b.score;},0) - (selectedCourse ? selectedCourse.pars.slice(0,selectedCourse.holes).reduce(function(a,b){return a+b;},0) : 0),
+      totalScore: scores.reduce(function(a,b){return a+b.score;},0),
+      totalPar: selectedCourse ? selectedCourse.pars.slice(0,selectedCourse.holes).reduce(function(a,b){return a+b;},0) : 0,
+      holes: selectedCourse ? selectedCourse.holes : 18
+    };
+    return ce(GolfShareScreen, { result: shareResult, onClose: function() { setShowSummaryShare(false); } });
+  }
+
   if (view === "summary" && selectedCourse) {
     var totalScore = scores.reduce(function(a, b) { return a + b.score; }, 0);
     var totalPar   = selectedCourse.pars.slice(0, selectedCourse.holes).reduce(function(a, b) { return a + b; }, 0);
@@ -3007,15 +3373,20 @@ function AppInner() {
           )
         ),
         ce("div", { style: { fontSize: 18, color: C.mutedLight, marginBottom: 16, textAlign: "center" } }, "Green dot in scorecard = GIR"),
-        ce("button", {
-          onClick: function() {
-            var round = { courseId: selectedCourse.id, courseName: selectedCourse.name, holes: selectedCourse.holes, pars: selectedCourse.pars.slice(), scoreDiff: finalDiff, totalScore: totalScore, totalPar: totalPar, totalPutts: totalPutts, girCount: girCount, date: new Date().toLocaleDateString(), holeData: scores.slice() };
-            clearRoundState();
-            var next = [round].concat(history);
-            setHistory(next); saveJSON(HISTORY_KEY, next); setView("setup");
-          },
-          style: { width: "100%", padding: "16px", borderRadius: 4, background: MG, border: "none", color: "#F2E8D5", fontSize: 17, fontWeight: 800 }
-        }, "Save Round"),
+        ce("div", { style: { display: "flex", gap: 10 } },
+          ce("button", { onClick: function() { setShowSummaryShare(true); },
+            style: { flex: 1, padding: "16px", borderRadius: 4, background: "transparent", border: "2px solid #D4AE50", color: "#D4AE50", fontSize: 15, fontWeight: 800 }
+          }, "Share"),
+          ce("button", {
+            onClick: function() {
+              var round = { courseId: selectedCourse.id, courseName: selectedCourse.name, holes: selectedCourse.holes, pars: selectedCourse.pars.slice(), scoreDiff: finalDiff, totalScore: totalScore, totalPar: totalPar, totalPutts: totalPutts, girCount: girCount, date: new Date().toLocaleDateString(), holeData: scores.slice() };
+              clearRoundState();
+              var next = [round].concat(history);
+              setHistory(next); saveJSON(HISTORY_KEY, next); setView("setup");
+            },
+            style: { flex: 2, padding: "16px", borderRadius: 4, background: MG, border: "none", color: "#F2E8D5", fontSize: 17, fontWeight: 800 }
+          }, "Save Round")
+        ),
         ce("button", { onClick: function() { setView("playing"); }, style: { width: "100%", marginTop: 10, padding: "13px", borderRadius: 4, background: "transparent", border: "1.5px solid " + C.cardBorder, color: C.muted, fontSize: 13 } }, "< Back to Scorecard")
       )
     );
