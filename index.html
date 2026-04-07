@@ -596,6 +596,7 @@ function HistoryLog(props) {
   var initialExpanded = props.initialExpanded !== undefined ? props.initialExpanded : null;
   var es = useState(initialExpanded);
   var expanded = es[0]; var setExpanded = es[1];
+  var shr = useState(null); var shareRound = shr[0]; var setShareRound = shr[1];
 
   // Header stats - stroke play only
   var strokeRounds = history.filter(function(r) { return !r.type || r.type === "stroke"; });
@@ -761,6 +762,10 @@ function HistoryLog(props) {
     return ce("span", { style: { fontSize: 9, fontWeight: 700, color: MG, background: "#E8F5EE", borderRadius: 5, padding: "2px 6px", marginLeft: 6, textTransform: "uppercase", letterSpacing: "0.06em" } }, labels[r.type] || r.type);
   }
 
+  if (shareRound) {
+    return ce(GolfShareScreen, { result: shareRound, onClose: function() { setShareRound(null); } });
+  }
+
   return ce("div", { style: { position: "fixed", inset: 0, background: C.bg, zIndex: 200, display: "flex", flexDirection: "column", maxWidth: 430, margin: "0 auto" } },
     ce("div", { style: { background: C.header, paddingTop: "calc(24px + var(--sat))", paddingRight: "24px", paddingBottom: "20px", paddingLeft: "24px" } },
       ce("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" } },
@@ -808,7 +813,22 @@ function HistoryLog(props) {
                 ),
                 ce("div", { style: { fontSize: 16, color: C.muted, marginLeft: 4 } }, isOpen ? "^" : "v")
               ),
-              isOpen ? roundExpandedContent(r) : null
+              isOpen ? ce("div", null,
+                roundExpandedContent(r),
+                ce("div", { style: { padding: "10px 14px", background: C.bgAlt, borderTop: "1px solid " + C.cardBorder } },
+                  ce("button", {
+                    onClick: function() {
+                      var shareResult = Object.assign({}, r);
+                      // Ensure stroke play rounds have the right structure
+                      if (!shareResult.type || shareResult.type === "stroke") {
+                        shareResult.type = "stroke";
+                      }
+                      setShareRound(shareResult);
+                    },
+                    style: { width: "100%", padding: "10px", borderRadius: 8, background: "transparent", border: "1.5px solid #D4AE50", color: "#D4AE50", fontSize: 12, fontWeight: 800, cursor: "pointer", letterSpacing: "0.05em" }
+                  }, "Share This Round")
+                )
+              ) : null
             );
           })
         )
