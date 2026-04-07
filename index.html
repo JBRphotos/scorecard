@@ -1297,28 +1297,10 @@ function GolfShareScreen(props) {
     ctx.fillText("The Ledger", px(20), ch - py(72));
     ctx.font = "600 " + px(9) + "px Helvetica Neue,Arial,sans-serif";
     ctx.fillStyle = "rgba(212,174,80,0.8)";
-    ctx.fillText(typeLabel.toUpperCase() + "  JBR", px(20), ch - py(52));
+    ctx.fillText("JBR  -  " + typeLabel.toUpperCase(), px(20), ch - py(52));
     ctx.shadowBlur = 0;
 
-    // Game type pill top-right
-    var pillW = px(80); var pillH = py(24); var pillX = cw - px(20) - pillW; var pillY = py(56);
-    ctx.fillStyle = "rgba(0,103,71,0.75)";
-    ctx.beginPath();
-    ctx.moveTo(pillX + py(8), pillY);
-    ctx.lineTo(pillX + pillW - py(8), pillY);
-    ctx.quadraticCurveTo(pillX + pillW, pillY, pillX + pillW, pillY + py(8));
-    ctx.lineTo(pillX + pillW, pillY + pillH - py(8));
-    ctx.quadraticCurveTo(pillX + pillW, pillY + pillH, pillX + pillW - py(8), pillY + pillH);
-    ctx.lineTo(pillX + py(8), pillY + pillH);
-    ctx.quadraticCurveTo(pillX, pillY + pillH, pillX, pillY + pillH - py(8));
-    ctx.lineTo(pillX, pillY + py(8));
-    ctx.quadraticCurveTo(pillX, pillY, pillX + py(8), pillY);
-    ctx.closePath();
-    ctx.fill();
-    ctx.font = "700 " + px(9) + "px Helvetica Neue,Arial,sans-serif";
-    ctx.fillStyle = "#D4AE50";
-    ctx.textAlign = "center";
-    ctx.fillText(typeLabel.toUpperCase(), pillX + pillW / 2, pillY + py(7));
+    // (game type label moved to bottom branding bar)
 
     canvas.toBlob(function(blob) {
       if (!blob) return;
@@ -1339,9 +1321,9 @@ function GolfShareScreen(props) {
   var posStyle = {
     tl:     { top: 120, left: 20, right: "auto", bottom: "auto", transform: "none" },
     tr:     { top: 120, right: 20, left: "auto", bottom: "auto", transform: "none" },
-    bl:     { bottom: 120, left: 20, right: "auto", top: "auto", transform: "none" },
-    br:     { bottom: 120, right: 20, left: "auto", top: "auto", transform: "none" },
-    center: { top: "50%", left: "50%", right: "auto", bottom: "auto", transform: "translate(-50%,-50%)" }
+    bl:     { bottom: 200, left: 20, right: "auto", top: "auto", transform: "none" },
+    br:     { bottom: 200, right: 20, left: "auto", top: "auto", transform: "none" },
+    center: { top: "50%", left: "50%", right: "auto", bottom: "auto", transform: "translate(-50%,-60%)" }
   }[position];
   var textAlign = (position === "tl" || position === "bl") ? "left" : (position === "tr" || position === "br") ? "right" : "center";
   var flexJust  = textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start";
@@ -1375,24 +1357,23 @@ function GolfShareScreen(props) {
     ce("div", { style: { position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.45) 100%)", pointerEvents: "none" } }),
 
     // Stats overlay
-    ce("div", { style: Object.assign({ position: "absolute", zIndex: 5, maxWidth: 280 }, posStyle) },
+    ce("div", { style: Object.assign({ position: "absolute", zIndex: 5, maxWidth: 280, textAlign: textAlign }, posStyle) },
       ce("div", { style: { fontSize: 9 * sc, color: "rgba(212,174,80,0.85)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 5 * sc, textShadow: "0 1px 6px rgba(0,0,0,0.9)" } },
         new Date().toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })
       ),
-      ce("div", { style: { fontSize: 24 * sc, fontWeight: 900, color: "#fff", lineHeight: 1, marginBottom: 6 * sc, textShadow: "0 2px 12px rgba(0,0,0,0.9)", textAlign: textAlign } }, courseName),
-      ce("div", { style: { fontSize: 40 * sc, fontWeight: 900, color: "#D4AE50", lineHeight: 1, textShadow: "0 2px 14px rgba(0,0,0,0.9)", textAlign: textAlign } }, scoreDisplay.line1),
-      scoreDisplay.line2 ? ce("div", { style: { fontSize: 10 * sc, color: "rgba(255,255,255,0.65)", marginTop: 4 * sc, textShadow: "0 1px 4px rgba(0,0,0,0.8)", textAlign: textAlign } }, scoreDisplay.line2) : null
+      ce("div", { style: { fontSize: 24 * sc, fontWeight: 900, color: "#fff", lineHeight: 1, marginBottom: 6 * sc, textShadow: "0 2px 12px rgba(0,0,0,0.9)" } }, courseName),
+      ce("div", { style: { fontSize: 40 * sc, fontWeight: 900, color: "#D4AE50", lineHeight: 1, textShadow: "0 2px 14px rgba(0,0,0,0.9)" } }, scoreDisplay.line1),
+      scoreDisplay.line2 ? ce("div", { style: { fontSize: 10 * sc, color: "rgba(255,255,255,0.65)", marginTop: 4 * sc, textShadow: "0 1px 4px rgba(0,0,0,0.8)" } }, scoreDisplay.line2) : null
     ),
 
-    // Game type pill top-right
-    ce("div", { style: { position: "absolute", top: 56, right: uiVisible ? 112 : 16, zIndex: 6, background: "rgba(0,103,71,0.8)", borderRadius: 20, padding: "5px 12px", border: "1px solid rgba(212,174,80,0.4)" } },
-      ce("div", { style: { fontSize: 9, fontWeight: 800, color: "#D4AE50", textTransform: "uppercase", letterSpacing: "0.1em" } }, typeLabel)
-    ),
-
-    // Branding bottom
+    // Branding + format bottom-left
     ce("div", { style: { position: "absolute", bottom: "calc(100px + env(safe-area-inset-bottom))", left: 20, zIndex: 6 } },
       ce("div", { style: { fontSize: 15, fontWeight: 900, color: "#fff", textShadow: "0 1px 8px rgba(0,0,0,0.9)" } }, "The Ledger"),
-      ce("div", { style: { fontSize: 9, color: "rgba(212,174,80,0.7)", letterSpacing: "0.1em", marginTop: 2 } }, "JBR")
+      ce("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 4 } },
+        ce("div", { style: { fontSize: 9, color: "rgba(212,174,80,0.7)", letterSpacing: "0.1em" } }, "JBR"),
+        ce("div", { style: { width: 3, height: 3, borderRadius: "50%", background: "rgba(212,174,80,0.4)" } }),
+        ce("div", { style: { fontSize: 9, fontWeight: 800, color: "rgba(212,174,80,0.85)", letterSpacing: "0.08em", textTransform: "uppercase" } }, typeLabel)
+      )
     ),
 
     // Controls top-right
